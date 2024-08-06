@@ -3,7 +3,7 @@ from pygame import Rect, time, transform
 class Sprite:
     def __init__(self, image) -> None:
         self.image = image
-        self.frame = Rect(0,0,16,32)
+        self.frame = Rect(0,0,32,64)
         self.frame_update = 1000/10
         self.last_frame = 0
 
