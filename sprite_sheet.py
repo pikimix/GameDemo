@@ -1,4 +1,4 @@
-from pygame import Rect, time, transform
+from pygame import Rect, time, transform, BLEND_RGBA_MIN
 
 class Sprite:
     def __init__(self, image) -> None:
@@ -16,5 +16,5 @@ class Sprite:
             self.last_frame = current_time
 
     def draw(self, screen, location, flip=False):
-
+        self.image.fill((0, 0, 255, 255),self.frame,BLEND_RGBA_MIN)
         screen.blit(transform.flip(self.image,True,False) if flip else self.image, location, self.frame) 
