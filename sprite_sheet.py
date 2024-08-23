@@ -15,6 +15,6 @@ class Sprite:
                 self.frame.x = 0
             self.last_frame = current_time
 
-    def draw(self, screen, location, flip=False):
-        self.image.fill((0, 0, 255, 255),self.frame,BLEND_RGBA_MIN)
+    def draw(self, screen, location, color=(0,0,128,255), flip=False):
+        self.image.fill(color,self.frame,BLEND_RGBA_MIN)
         screen.blit(transform.flip(self.image,True,False) if flip else self.image, location, self.frame) 
