@@ -24,7 +24,8 @@ class Scene:
     def update(self, dt: float) -> None:
         self._player.update(dt)
         for entity in self._entities:
-            entity.update()
+            entity.move_to(self._player.get_location())
+            entity.update(dt)
     
     def draw(self):
         self._screen.fill("purple")
