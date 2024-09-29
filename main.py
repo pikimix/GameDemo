@@ -1,18 +1,17 @@
 # Example file showing a circle moving on screen
 import pygame
-from player import Player
+from scene import Scene
 
 # pygame setup
 pygame.init()
-screen = pygame.display.set_mode((1280, 720))
+
+# set the clock
 clock = pygame.time.Clock()
 running = True
 dt = 0
 
-# player_pos = pygame.Vector2(screen.get_width() / 2, screen.get_height() / 2)
-player = Player(pygame.Vector2(screen.get_width() / 2, screen.get_height() / 2),
-                pygame.image.load("assets/player.png").convert_alpha())
-
+# create the scene manager
+scene = Scene()
 
 while running:
     # poll for events
@@ -20,11 +19,13 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+    
+    # update the current scene
+    scene.update(dt)
 
-    # fill the screen with a color to wipe away anything from last frame
-    screen.fill("purple")
-    player.update(pygame, dt)
-    player.draw(screen)
+    # draw current scene
+    scene.draw()
+
     # flip() the display to put your work on screen
     pygame.display.flip()
 
