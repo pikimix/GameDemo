@@ -10,6 +10,14 @@ class Entity:
         self._facing_left = False
         self._velocity = pg.Vector2(0,0)
 
+    def get_location(self):
+        if self._sprite:
+            x = self._location.x + (self._sprite.width / 2)
+            y = self._location.y + (self._sprite.height / 2)
+            return pg.Vector2(x, y)
+        else:
+            return self._location
+
     def update(self, dt: float):
         self._location += self._velocity * dt
 
