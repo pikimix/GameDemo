@@ -2,11 +2,16 @@ from sprite_sheet import Sprite
 import pygame as pg
 
 class Entity:
-    def __init__(self, location: pg.Vector2, sprite: pg.Surface) -> None:
+    def __init__(self, location: pg.Vector2, sprite: pg.Surface=None) -> None:
         self.location = location
-        self.sprite = Sprite(sprite)
+        self.sprite = None
+        if sprite:
+            self.sprite = Sprite(sprite)
         self.facing_left = False
-    
+
+    def update(self):
+        pass
+
     def draw(self, screen):
         if self.sprite:
             self.sprite.draw(screen, self.location, flip=self.facing_left)
