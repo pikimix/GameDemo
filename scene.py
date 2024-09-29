@@ -2,7 +2,7 @@
 Current state of the game
 """
 import pygame as pg
-from player import Player
+from entity import Player
 
 class Scene:
     def __init__(self) -> None:
