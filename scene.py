@@ -28,7 +28,7 @@ class Scene:
             entity.update(dt)
     
     def draw(self):
-        self._screen.fill("purple")
+        self._screen.fill("forestgreen")
         self._player.draw(self._screen)
         for entity in self._entities:
             entity.draw(self._screen)
