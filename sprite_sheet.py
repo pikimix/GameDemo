@@ -4,9 +4,12 @@ class Sprite:
     def __init__(self, image: pg.Surface) -> None:
         self._image = image
         self._frame = pg.Rect(0,0,32,64)
+        self.width = self._frame.width
+        self.height = self._frame.height
         self._frame_update = 1000/10
         self._last_frame = 0
 
+    
     def update(self):
         current_time = pg.time.get_ticks()
         if current_time > self._last_frame + self._frame_update:
