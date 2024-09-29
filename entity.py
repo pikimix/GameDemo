@@ -6,6 +6,12 @@ class Entity:
         self.location = location
         self.sprite = Sprite(sprite)
         self.facing_left = False
+    
+    def draw(self, screen):
+        if self.sprite:
+            self.sprite.draw(screen, self.location, flip=self.facing_left)
+        else:
+            pg.draw.circle(screen, (255,0,0), self.location, 10, 10)
 
 class Player(Entity):
     def __init__(self, location, sprite) -> None:
@@ -24,6 +30,6 @@ class Player(Entity):
             self.facing_left = False
             self.location.x += 300 * dt
         self.sprite.update()
-
+    
     def draw(self, screen):
-        self.sprite.draw(screen, self.location, flip=self.facing_left)
+        super().draw(screen)
