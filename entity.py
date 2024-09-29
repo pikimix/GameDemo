@@ -8,9 +8,10 @@ class Entity:
         if sprite:
             self._sprite = Sprite(sprite)
         self._facing_left = False
+        self._velocity = pg.Vector2(0,0)
 
-    def update(self):
-        pass
+    def update(self, dt: float):
+        self._location += self._velocity * dt
 
     def draw(self, screen):
         if self._sprite:
@@ -25,16 +26,22 @@ class Player(Entity):
     def update(self, dt) -> None:
         keys = pg.key.get_pressed()
         if keys[pg.K_w]:
-            self._location.y -= 300 * dt
-        if keys[pg.K_s]:
-            self._location.y += 300 * dt
+            self._velocity.y = -300
+        elif keys[pg.K_s]:
+            self._velocity.y = 300
+        else:
+            self._velocity.y = 0
         if keys[pg.K_a]:
             self._facing_left = True
-            self._location.x -= 300 * dt
-        if keys[pg.K_d]:
+            self._velocity.x = -300
+        elif keys[pg.K_d]:
             self._facing_left = False
-            self._location.x += 300 * dt
+            self._velocity.x = 300
+        else:
+            self._velocity.x = 0
+
         self._sprite.update()
+        super().update(dt)
     
     def draw(self, screen):
         super().draw(screen)
