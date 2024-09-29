@@ -10,6 +10,21 @@ class Entity:
         self._facing_left = False
         self._velocity = pg.Vector2(0,0)
 
+    def move_to(self, destination: pg.Vector2):
+        if destination.x > self._location.x:
+            self._velocity.x = 200
+        elif destination.x < self._location.x:
+            self._velocity.x = -200
+        else:
+            self._velocity.x = 0
+
+        if destination.y > self._location.y:
+            self._velocity.y = 200
+        elif destination.y < self._location.y:
+            self._velocity.y = -200
+        else:
+            self._velocity.y = 0
+
     def get_location(self):
         if self._sprite:
             x = self._location.x + (self._sprite.width / 2)
