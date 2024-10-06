@@ -2,7 +2,8 @@ from sprite_sheet import Sprite
 import pygame as pg
 
 class Entity:
-    def __init__(self, location: pg.Vector2, sprite: pg.Surface=None) -> None:
+    def __init__(self, location: pg.Vector2, sprite: pg.Surface=None, uuid=None) -> None:
+        self._uuid = uuid
         self._location = location
         self._sprite = None
         if sprite:
@@ -36,6 +37,12 @@ class Entity:
     def update(self, dt: float):
         self._location += self._velocity * dt
 
+    def serialize(self):
+        return {
+            'uuid': {self._uuid},
+            'location' : { 'x' : self._location.x, 'y': self._location.y},
+            'velocity' : { 'x' : self._velocity.x, 'y': self._velocity.y}
+        }
     def draw(self, screen):
         if self._sprite:
             self._sprite.draw(screen, self._location, flip=self._facing_left)
@@ -43,8 +50,8 @@ class Entity:
             pg.draw.circle(screen, (255,0,0), self._location, 10, 10)
 
 class Player(Entity):
-    def __init__(self, location, sprite) -> None:
-        super().__init__(location, sprite)
+    def __init__(self, location, sprite, uuid) -> None:
+        super().__init__(location, sprite, uuid)
 
     def update(self, dt) -> None:
         keys = pg.key.get_pressed()

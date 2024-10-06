@@ -12,11 +12,15 @@ def signal_handler(sig, frame):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--server", help="Run the process as a headless server", action='store_true')
-parser.add_argument("-d", "--debug", help="Run the process as a headless server", action='store_true')
+parser.add_argument("-u", "--url", help="Server URL to connect to, or IP to listen on as server", required=False, default="localhost")
+parser.add_argument("-p", "--port", help="Server port to connect to, or listen on as server", required=False, default=6789)
+parser.add_argument("-d", "--debug", help="Run with debug flags", action='store_true')
 args = parser.parse_args()
 
 DEBUG = args.debug
 server = args.server
+url = args.url
+port = args.port
 
 if server:
     os.environ["SDL_VIDEODRIVER"] = "dummy"
@@ -32,9 +36,12 @@ running = True
 dt = 0
 
 # create the scene manager
-scene = Scene(debug=DEBUG, server=server)
+scene = None
 if server:
+    scene = Scene(debug=DEBUG, server=server, port=port)
     print("Server starting, press ctrl+c to exit.")
+else:
+    scene = Scene(debug=DEBUG, server=url, port=port)
 
 while running:
     # poll for events
