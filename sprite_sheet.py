@@ -31,6 +31,8 @@ class Sprite:
                 self._frame.x = 0
             self._last_frame = current_time
 
-    def draw(self, screen: pg.Surface, location: pg.Vector2, color=(0,0,128,255), flip: bool=False):
-        self._image.fill(color,self._frame,pg.BLEND_RGBA_MIN)
-        screen.blit(pg.transform.flip(self._image,True,False) if flip else self._image, location, self._frame) 
+    def draw(self, screen: pg.Surface, location: pg.Vector2, color:pg.Color|tuple=None, flip: bool=False):
+        tinted = self._image.copy()
+        if color:
+            tinted.fill(color,None,pg.BLEND_RGBA_MIN)
+        screen.blit(pg.transform.flip(tinted,True,False) if flip else tinted, location, self._frame) 
