@@ -14,7 +14,7 @@ class WebSocketClient:
         self.message_handler = None
 
     def on_message(self, ws, message):
-        logger.info(f'on_message:Received message: {type(message)=} {message=}')  # Log the raw message
+        logger.debug(f'on_message:Received message: {type(message)=} {message=}')  # Log the raw message
         try:
             # data = json.loads(message)
             if self.message_handler:
