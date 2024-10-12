@@ -1,148 +1,94 @@
 import asyncio
 import websockets
 import json
-from queue import Queue
-from threading import Thread
-import sys
-from time import sleep
-class Server:
-    def __init__(self, data_queue: Queue, command_queue: Queue, host="0.0.0.0", port=6789) -> None:
-        self._host = host
-        self._port = port
-        self._server = None
-        self._stopping = False
-        self._data_queue = data_queue
-        self._command_queue = command_queue
+import logging
 
-    async def start(self):
-        self._server = await websockets.serve(self.echo, self._host, self._port)
-        print(f"Server started at ws://{self._host}:{self._port}")
+# Configure logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
-        # Start a separate task for processing the queue
-        asyncio.create_task(self.process_queue())
+class WebSocketServer:
+    def __init__(self):
+        self.connected_clients = {}
+        self.messages = asyncio.Queue()  # Use an asyncio.Queue for safe access
+        self.running = True
+        self.entities = []
 
+    async def handler(self, websocket, path):
+        # Wait for the initial message containing the UUID
         try:
-            while not self._stopping:
-                while not self._command_queue.empty():
-                    if self._command_queue.get() == "quit":
-                        self._stopping = True
-                await asyncio.sleep(0.1) # Allow other tasks to run
-        except asyncio.CancelledError:
-            pass  # Allow graceful shutdown
+            initial_message = await websocket.recv()
+            data = json.loads(initial_message)
+            client_id = data.get("uuid")
 
-    async def echo(self, websocket, path):
-        async for message in websocket:
-            data = json.loads(message)
-            print(f"SERVER Received: {data}")
-            self._data_queue.put(data)
-            await websocket.send(json.dumps(data))
-            print(f"SERVER Sent: {data}")
+            if not client_id:
+                logger.error("No UUID provided by client. Closing connection.")
+                await websocket.close()
+                return
+            
+            self.connected_clients[client_id] = websocket
+            logger.info(f"Client connected: {client_id}")
 
-    async def process_queue(self):
-        try:
-            while not self._stopping:
-                while not self._data_queue.empty():
-                    received_data = self._data_queue.get()
-                    print(f"Main thread processed data: {received_data}")
-                await asyncio.sleep(0.1)  # Prevent busy waiting
-        except asyncio.CancelledError:
-            pass  # Allow graceful shutdown
+            async for message in websocket:
+                await self.handle_message(client_id, message)
+
+        finally:
+            if client_id in self.connected_clients:
+                del self.connected_clients[client_id]
+                logger.info(f"Client disconnected: {client_id}")
+
+    async def handle_message(self, client_id, message):
+        logger.debug(f"Received message from {client_id}: {message}")
         
-    async def stop(self):
-        print("Stopping server...")
-        self._stopping = True  # Signal to stop the main loop
-        if self._server:  # Ensure server is not None
-            await self._server.wait_closed()  # Wait until the server is closed
-            print("Server stopped.")
+        data = json.loads(message)
+        
+        found = False
+        for idx, entity in enumerate(self.entities):
+            if data['uuid'] == entity['uuid']:
+                self.entities[idx] = data
+                found = True
+        if not found:
+            self.entities.append(data)
+        
+        # Create combined payload
+        combined_payload = {
+            "entities": self.entities
+        }
 
+        # Broadcast the combined message to all connected clients
+        await self.broadcast(client_id, combined_payload)
 
-class Client:
-    def __init__(self, data_queue: Queue, url="localhost", port=6789):
-        self._data_queue = data_queue
-        self._url = url
-        self._port = port
+    async def broadcast(self, sender_id, message):
+        logger.debug(f'Broadcast Message: {message=}')
+        for client_id, websocket in self.connected_clients.items():
+            if client_id != sender_id:  # Don't send the message back to the sender
+                try:
+                    await websocket.send(json.dumps(message))
+                    logger.debug(f"Sent message to {client_id}: {message}")
+                except Exception as e:
+                    logger.error(f"Error sending message to {client_id}: {e}")
 
-    async def send_dict(self, data={"key1": "value1", "key2": "value2"}):
-        uri = f"ws://{self._url}:{self._port}"
+    def run(self, host='localhost', port=8765):
+        start_server = websockets.serve(self.handler, host, port)
+        asyncio.get_event_loop().run_until_complete(start_server)
+        logger.info(f"WebSocket server started on ws://{host}:{port}")
+
+        # Handle shutdown
+        loop = asyncio.get_event_loop()
         try:
-            async with websockets.connect(uri, timeout=5) as websocket:
-                await websocket.send(json.dumps(data))
-                print(f"CLIENT Sent: {data}")
-                response = await websocket.recv()
-                print(f"CLIENT Received: {json.loads(response)}")
-                self._data_queue.put(json.loads(response))  # Store the response in the queue
-        except asyncio.TimeoutError:
-            print("Connection timed out.")
-        except Exception as e:
-            print(f"Error in client send_dict: {e}")
+            loop.run_forever()
+        except KeyboardInterrupt:
+            logger.info("Shutting down server...")
+            self.running = False
+            loop.run_until_complete(self.shutdown())
 
-async def client_thread(data_queue: Queue, send_queue: Queue, url: str="localhost", port: int=6789):
-    client = Client(data_queue, url, port)
-    looping = True
-    while looping:
-        while not send_queue.empty():
-            payload = send_queue.get()
-            if payload:
-                if payload == "quit":
-                    looping = False
-                await client.send_dict(payload)
-            else:
-                await client.send_dict()
-            # Process data received in the queue
-            while not data_queue.empty():
-                received_data = data_queue.get()
-                print(f"Main thread processed data: {received_data}")
-
-def server_thread(data_queue, command_queue):
-    # try:
-        server = Server(data_queue, command_queue)
-        asyncio.run(server.start())
-        while not data_queue.empty():
-            received_data = data_queue.get()
-            print(f"Main thread processed data: {received_data}")
-    # except KeyboardInterrupt:
-    #     print("Keyboard Interrupt")
-    #     asyncio.run(server.stop())  # Gracefully stop the server on keyboard interrupt
-    #     print("Asyncio run called on server.stop")
-
-def thread_runner(func, *args):
-    try:
-        asyncio.run(func(*args))
-    except Exception as e:
-        print(e)
+    async def shutdown(self):
+        # Close all connections gracefully
+        logger.info("Closing all client connections...")
+        for client_id, websocket in self.connected_clients.items():
+            await websocket.close()
+            logger.info(f"Closed connection for client: {client_id}")
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python script.py <server|client>")
-        sys.exit(1)
-
-    mode = sys.argv[1].lower()
-    if mode == "server":
-        data_queue = Queue()
-        command_queue = Queue()
-        try:
-            server_thread = Thread(target=thread_runner, args=(server_thread, data_queue, command_queue))
-            server_thread.daemon = True
-            server_thread.start()
-            while True:
-                while not data_queue.empty():
-                    received_data = data_queue.get()
-                    print(f"Main thread processed data: {received_data}")
-
-        except KeyboardInterrupt:
-            print("Caught intterupt")
-            command_queue.put("quit")
-            server_thread.join() 
-    elif mode == "client":
-        data_queue = Queue()
-        send_queue = Queue()
-        client_thread = Thread(target=thread_runner, args=(client_thread, data_queue, send_queue))
-        client_thread.start()
-        send_queue.put(None)
-        send_queue.put({"key": "value"})
-        send_queue.put("quit")
-        client_thread.join()  # Wait for the client thread to finish
-    else:
-        print("Invalid mode. Use 'server' or 'client'.")
-        sys.exit(1)
-    print("End of file.")
+    server = WebSocketServer()
+    server.run()
