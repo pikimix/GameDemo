@@ -37,11 +37,12 @@ class Scene:
             send_data['timestamp'] = pg.time.get_ticks()
             logger.debug(send_data)
             self._ws_client.send(send_data)
-            
-        for entity in self._entities:
-            entity.move_to(self._player.get_location())
-            entity.update(dt)
-            logger.debug(f"{entity.get_location()=}")
+        
+        if not self._ws_client.running:
+            for entity in self._entities:
+                entity.move_to(self._player.get_location())
+                entity.update(dt)
+                logger.debug(f"{entity.get_location()=}")
     
     def handle_message(self, message):
         # Handle received message from the server
