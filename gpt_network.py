@@ -35,6 +35,15 @@ class WebSocketServer:
         finally:
             if client_id in self.connected_clients:
                 del self.connected_clients[client_id]
+                client_idx = None
+                for idx, client in enumerate(self.entities):
+                    if client['uuid'] == client_id:
+                        client_idx = idx
+                if client_idx:
+                    logger.info('Removing client from current entities list.')
+                    self.entities.pop(client_idx)
+                else:
+                    logger.info('Client not found in entity list.')
                 logger.info(f"Client disconnected: {client_id}")
 
     async def handle_message(self, client_id, message):
