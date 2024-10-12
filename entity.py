@@ -17,7 +17,9 @@ class Entity:
     @staticmethod
     def from_dict(entity: dict, sprite_list: SpriteSet, e_uuid):
         loc = pg.Vector2(entity['location']['x'], entity['location']['y'])
-        sprite = { entity['sprite']: sprite_list.get_sprite(entity['sprite']) }
+        sprite = None
+        if entity['sprite']:
+            sprite = { entity['sprite']: sprite_list.get_sprite(entity['sprite']) }
         new_entity = Entity(loc, sprite, e_uuid)
         new_entity._facing_left= entity['facing_left']
         new_entity._velocity = pg.Vector2(entity['velocity']['x'], entity['velocity']['y'])
@@ -71,8 +73,10 @@ class Enemy(Entity):
     @staticmethod
     def from_dict(enemy: dict, sprite_list: SpriteSet, e_uuid, target_uuid):
         loc = pg.Vector2(enemy['location']['x'], enemy['location']['y'])
-        sprite = { enemy['sprite']: sprite_list.get_sprite(enemy['sprite']) }
-        new_enemy = Entity(loc, sprite, e_uuid, target_uuid)
+        sprite = None
+        if enemy['sprite']:
+            sprite = { enemy['sprite']: sprite_list.get_sprite(enemy['sprite']) }
+        new_enemy = Enemy(loc, sprite, e_uuid, target_uuid)
         new_enemy._facing_left= enemy['facing_left']
         new_enemy._velocity = pg.Vector2(enemy['velocity']['x'], enemy['velocity']['y'])
         return new_enemy
