@@ -4,66 +4,60 @@ Current state of the game
 import pygame as pg
 from entity import Player, Entity
 from random import randint
-from threading import Thread
-from queue import Queue
-from gpt_network import Client, thread_runner, client_thread
 import uuid
-
+from network import WebSocketClient  
+import json
+import logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 class Scene:
-    def __init__(self, debug: bool=False, server: bool|str=False, port: int=6789) -> None:
-        self._server = None
-        self._data_queue = None
-        self._send_queue = None
-        self._uuid = None
-        self._client_thread = None
-        if type(server) == bool:
-            self._server = server
-        elif type(server) == str:
-            self._data_queue = Queue()
-            self._send_queue = Queue()
-            self._uuid = uuid.uuid4()
-            self._client_thread = Thread(target=thread_runner, 
-                                    args=(client_thread, 
-                                    self._data_queue,
-                                    self._send_queue,
-                                    server, port))
-            self._client_thread.start()
+    def __init__(self, debug: bool=False, url: str='localhost', port: int=6789) -> None:
+        self._uuid = uuid.uuid4()
+        logger.info(self._uuid)
+        self._ws_client = WebSocketClient(f'ws://{url}:{port}')
+        self._ws_client.set_message_handler(self.handle_message)
+        self._ws_client.start()
         self._screen = pg.display.set_mode((1280, 720))
         self._entities = []
         self._DEBUG = debug
-        # if self._DEBUG:
-        #     # create 5 random entities if we are in debug mode
-        #     for _ in range(6):
-        #         loc = pg.Vector2(randint(0,self._screen.get_width()),
-        #             randint(0, self._screen.get_height()))
-        #         self._entities.append(Entity(loc))
+        if self._DEBUG:
+            # create 5 random entities if we are in debug mode
+            for _ in range(6):
+                loc = pg.Vector2(randint(0,self._screen.get_width()),
+                    randint(0, self._screen.get_height()))
+                self._entities.append(Entity(loc))
 
         self._player = Player(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
                 pg.image.load("assets/player.png").convert_alpha(), self._uuid)
 
     def update(self, dt: float) -> None:
         self._player.update(dt)
-        if self._client_thread:
-            print(self._player.serialize())
-            self._send_queue.put(self._player.serialize())
-            current_state={'timestamp':0}
-            while not self._data_queue.empty():
-                data = self._data_queue.get()
-                if type(data) == dict \
-                    and 'timestamp' in data.keys():
-                    if current_state['timestamp'] < data['timestamp']:
-                        current_state = data
-            if 'entities' in current_state.keys():
-                self._entities = current_state['entities']
+        if self._ws_client:
+            send_data = self._player.serialize()
+            send_data['timestamp'] = pg.time.get_ticks()
+            logger.debug(send_data)
+            self._ws_client.send(send_data)
+            
         for entity in self._entities:
             entity.move_to(self._player.get_location())
             entity.update(dt)
-            if self._DEBUG:
-                print(f"{entity.get_location()=}")
+            logger.debug(f"{entity.get_location()=}")
     
+    def handle_message(self, message):
+        # Handle received message from the server
+        logger.info(f'Received message: {type(message)=} {message=}')
+        data = json.loads(message)
+        if 'entities' in data.keys():
+            self._entities = []
+            for entity in data['entities']:
+                e_uuid = uuid.UUID(entity['uuid'])
+                if e_uuid != self._uuid:
+                    loc = pg.Vector2(entity['location']['x'], entity['location']['y'])
+                    new_entity = Entity(loc, None, e_uuid)
+                    self._entities.append(new_entity)
+
     def quit(self):
-        self._send_queue.put("quit")
-        self._client_thread.join()
+        self._ws_client.stop()
 
     def draw(self):
         self._screen.fill("forestgreen")
