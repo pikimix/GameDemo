@@ -3,7 +3,7 @@ import pygame as pg
 
 class Entity:
     def __init__(self, location: pg.Vector2, sprite: dict=None, uuid=None) -> None:
-        self._uuid = uuid
+        self.uuid = uuid
         self._location = location
         self._sprite = None
         self._sprite_name = None
@@ -53,7 +53,7 @@ class Entity:
 
     def serialize(self):
         return {
-            'uuid': str(self._uuid),
+            'uuid': str(self.uuid),
             'location' : { 'x' : self._location.x, 'y': self._location.y},
             'velocity' : { 'x' : self._velocity.x, 'y': self._velocity.y},
             'sprite': self._sprite_name,
