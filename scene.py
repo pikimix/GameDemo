@@ -3,6 +3,7 @@ Current state of the game
 """
 import pygame as pg
 from entity import Player, Entity
+from sprite_sheet import SpriteSet
 from random import randint
 import uuid
 from network import WebSocketClient  
@@ -26,9 +27,9 @@ class Scene:
                 loc = pg.Vector2(randint(0,self._screen.get_width()),
                     randint(0, self._screen.get_height()))
                 self._entities.append(Entity(loc))
-
+        self._sprite_list = SpriteSet({'player': 'assets/player.png'})
         self._player = Player(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
-                pg.image.load("assets/player.png").convert_alpha(), self._uuid)
+                {'player': self._sprite_list.get_sprite('player')}, self._uuid)
 
     def update(self, dt: float) -> None:
         self._player.update(dt)
@@ -53,8 +54,7 @@ class Scene:
             for entity in data['entities']:
                 e_uuid = uuid.UUID(entity['uuid'])
                 if e_uuid != self._uuid:
-                    loc = pg.Vector2(entity['location']['x'], entity['location']['y'])
-                    new_entity = Entity(loc, None, e_uuid)
+                    new_entity = Entity.from_dict(entity, self._sprite_list, e_uuid)
                     self._entities.append(new_entity)
 
     def quit(self):

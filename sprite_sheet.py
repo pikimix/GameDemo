@@ -1,5 +1,18 @@
 import pygame as pg
 
+class SpriteSet:
+    def __init__(self, sprites:dict) -> None:
+        self._sprites = {}
+        for name, file in sprites.items():
+            surface = pg.image.load(file).convert_alpha()
+            self._sprites[name] = surface
+
+    def get_sprite(self, name:str) -> pg.Surface:
+        if name in self._sprites.keys():
+            return self._sprites[name]
+        else:
+            return None
+
 class Sprite:
     def __init__(self, image: pg.Surface) -> None:
         self._image = image
