@@ -51,6 +51,13 @@ class Entity:
     def update(self, dt: float):
         self._location += self._velocity * dt
 
+    def net_update(self, remote_entity:dict):
+        self._location.x = remote_entity['location']['x']
+        self._location.y = remote_entity['location']['y']
+        self._velocity.x = remote_entity['velocity']['x']
+        self._velocity.y = remote_entity['velocity']['y']
+        self._facing_left = remote_entity['facing_left']
+        
     def serialize(self):
         return {
             'uuid': str(self.uuid),
@@ -83,6 +90,10 @@ class Enemy(Entity):
     
     def update(self, dt: float):
         return super().update(dt)
+    
+    def net_update(self, remote_entity: dict):
+        self._target = remote_entity['target']
+        return super().net_update(remote_entity)
 
     def update_target(self, target_uuid):
         self._target = target_uuid
