@@ -39,9 +39,10 @@ class Entity:
 
     def serialize(self):
         return {
-            'uuid': {self._uuid},
+            'uuid': str(self._uuid),
             'location' : { 'x' : self._location.x, 'y': self._location.y},
-            'velocity' : { 'x' : self._velocity.x, 'y': self._velocity.y}
+            'velocity' : { 'x' : self._velocity.x, 'y': self._velocity.y},
+            'sprite': None
         }
     def draw(self, screen):
         if self._sprite:
