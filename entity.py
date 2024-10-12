@@ -63,6 +63,22 @@ class Entity:
         else:
             pg.draw.circle(screen, (255,0,0,255), self._location, 10, 10)
 
+class Enemy(Entity):
+    def __init__(self, location: pg.Vector2, sprite: dict = None, uuid=None, target_uuid=None) -> None:
+        self._target = target_uuid
+        super().__init__(location, sprite, uuid)
+    
+    def update(self, dt: float):
+        return super().update(dt)
+
+    def update_target(self, target_uuid):
+        self._target = target_uuid
+    
+    def move_to_target(self, player_position_list:list):
+        for player in player_position_list:
+            if player['uuid'] == self._target:
+                super().move_to(player['position'])
+
 class Player(Entity):
     def __init__(self, location, sprite, uuid) -> None:
         super().__init__(location, sprite, uuid)
