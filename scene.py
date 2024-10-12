@@ -2,7 +2,7 @@
 Current state of the game
 """
 import pygame as pg
-from entity import Player, Entity
+from entity import Player, Entity, Enemy
 from sprite_sheet import SpriteSet
 from random import randint
 import uuid
@@ -26,7 +26,7 @@ class Scene:
             for _ in range(6):
                 loc = pg.Vector2(randint(0,self._screen.get_width()),
                     randint(0, self._screen.get_height()))
-                self._entities.append(Entity(loc))
+                self._entities.append(Enemy(loc))
         self._sprite_list = SpriteSet({'player': 'assets/player.png'})
         self._player = Player(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
                 {'player': self._sprite_list.get_sprite('player')}, self._uuid)
@@ -35,6 +35,7 @@ class Scene:
         self._player.update(dt)
         if self._ws_client:
             send_data = self._player.serialize()
+            send_data['type'] = 'player'
             send_data['timestamp'] = pg.time.get_ticks()
             logger.debug(send_data)
             self._ws_client.send(send_data)
@@ -54,9 +55,12 @@ class Scene:
             for entity in data['entities']:
                 e_uuid = uuid.UUID(entity['uuid'])
                 if e_uuid != self._uuid:
-                    new_entity = Entity.from_dict(entity, self._sprite_list, e_uuid)
+                    if entity['type'] == 'player':
+                        new_entity = Entity.from_dict(entity, self._sprite_list, e_uuid)
+                    else:
+                        target = uuid.UUID(entity['target'])
+                        new_entity = Enemy.from_dict(entity, self._sprite_list, e_uuid, target)
                     self._entities.append(new_entity)
-
     def quit(self):
         self._ws_client.stop()
 
