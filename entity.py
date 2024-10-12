@@ -68,6 +68,15 @@ class Enemy(Entity):
         self._target = target_uuid
         super().__init__(location, sprite, uuid)
     
+    @staticmethod
+    def from_dict(enemy: dict, sprite_list: SpriteSet, e_uuid, target_uuid):
+        loc = pg.Vector2(enemy['location']['x'], enemy['location']['y'])
+        sprite = { enemy['sprite']: sprite_list.get_sprite(enemy['sprite']) }
+        new_enemy = Entity(loc, sprite, e_uuid, target_uuid)
+        new_enemy._facing_left= enemy['facing_left']
+        new_enemy._velocity = pg.Vector2(enemy['velocity']['x'], enemy['velocity']['y'])
+        return new_enemy
+    
     def update(self, dt: float):
         return super().update(dt)
 
