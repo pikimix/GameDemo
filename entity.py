@@ -14,8 +14,12 @@ class Entity:
             for k,v in sprite.items():
                 self._sprite_name = k
                 self._sprite = Sprite(v)
+        else:
+            self._sprite = Sprite(None)
         self._facing_left = False
         self._velocity = pg.Vector2(0,0)
+        self._hp = 100
+        self._atack = 10
 
     @staticmethod
     def from_dict(entity: dict, sprite_list: SpriteSet, e_uuid):
@@ -42,6 +46,21 @@ class Entity:
             self._velocity.y = -200
         else:
             self._velocity.y = 0
+
+    def check_collides(self, other_entity):
+        mask = self.get_mask()
+        other_mask = other_entity.get_mask()
+        x_offset = self.get_location().x - other_entity.get_location().x
+        y_offset = self.get_location().y - other_entity.get_location().y
+        return mask.overlap(other_mask,(x_offset,y_offset))
+
+    def get_mask(self):
+        if self._sprite:
+            return self._sprite.get_mask(flip=self._facing_left)
+        else:
+            surface = pg.Surface((20,20), pg.SRCALPHA)
+            pg.draw.circle(surface, (255,0,0,255), (10,10), radius=10, width=0)
+            return pg.mask.from_surface(surface)
 
     def get_location(self):
         if self._sprite:
@@ -73,7 +92,7 @@ class Entity:
         if self._sprite:
             self._sprite.draw(screen, self._location, flip=self._facing_left, color=color)
         else:
-            pg.draw.circle(screen, (255,0,0,255), self._location, 10, 10)
+            pg.draw.circle(screen, (255,0,0,255), self._location, radius=10, width=0)
 
 class Enemy(Entity):
     def __init__(self, location: pg.Vector2, sprite: dict = None, uuid=None, target_uuid=None) -> None:
@@ -121,6 +140,7 @@ class Enemy(Entity):
 
 class Player(Entity):
     def __init__(self, location, sprite, uuid) -> None:
+        self._color = (0,0,128,255)
         super().__init__(location, sprite, uuid)
 
     def update(self, dt) -> None:
@@ -144,4 +164,4 @@ class Player(Entity):
         super().update(dt)
     
     def draw(self, screen):
-        super().draw(screen, color=(0,0,128,255))
+        super().draw(screen, color=self._color)
