@@ -30,11 +30,12 @@ class WebSocketClient:
     def on_error(self, ws, error):
         print("WebSocket Error:", error)
 
-    def on_close(self, ws):
-        print("WebSocket connection closed")
+    def on_close(self, ws, close_status_code, close_msg):
+        logger.info(f'on_close: {close_status_code=}')
+        logger.info(f'on_close: {close_msg=}')
         self.running = False
         # Attempt to reconnect
-        self.reconnect()
+        # self.reconnect()
 
     def on_open(self, ws):
         print("WebSocket connection opened")
