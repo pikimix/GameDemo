@@ -1,5 +1,8 @@
 from sprite_sheet import Sprite, SpriteSet
 import pygame as pg
+import logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 class Entity:
     def __init__(self, location: pg.Vector2, sprite: dict=None, uuid=None) -> None:
@@ -91,7 +94,20 @@ class Enemy(Entity):
     def update(self, dt: float):
         return super().update(dt)
     
+    def serialize(self):
+        return {
+            'uuid': str(self.uuid),
+            'location' : { 'x' : self._location.x, 'y': self._location.y},
+            'velocity' : { 'x' : self._velocity.x, 'y': self._velocity.y},
+            'sprite': self._sprite_name,
+            'facing_left': self._facing_left,
+            'target' : str(self._target),
+            'type' : 'enemy'
+        }
+    
     def net_update(self, remote_entity: dict):
+        if self._target != remote_entity['target']:
+            logger.error(f'net_update:{self._target} != {remote_entity["target"]}')
         self._target = remote_entity['target']
         return super().net_update(remote_entity)
 
