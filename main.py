@@ -33,6 +33,9 @@ signal.signal(signal.SIGINT, signal_handler)
 # pygame setup
 pygame.init()
 
+# initialise font support
+pygame.font.init()
+
 # set the clock
 clock = pygame.time.Clock()
 running = True

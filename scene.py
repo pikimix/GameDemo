@@ -30,6 +30,7 @@ class Scene:
         self._sprite_list = SpriteSet({'player': 'assets/player.png'})
         self._player = Player(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
                 {'player': self._sprite_list.get_sprite('player')}, self._uuid)
+        self._font = pg.font.SysFont('Ariel', 30)
 
     def update(self, dt: float) -> None:
         self._player.update(dt)
@@ -109,9 +110,11 @@ class Scene:
 
     def draw(self):
         self._screen.fill("forestgreen")
-        self._player.draw(self._screen)
         for entity in self._entities:
             if type(entity) == Enemy:
                 entity.draw(self._screen)
             else:
                 entity.draw(self._screen, (255,255,0,255))
+        self._player.draw(self._screen)
+        text_surface = self._font.render(f'Score: {pg.time.get_ticks()}', False, (0, 0, 0))
+        self._screen.blit(text_surface, (0,0))
