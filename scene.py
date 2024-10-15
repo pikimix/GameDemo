@@ -50,13 +50,23 @@ class Scene:
         else:
                 enemy_update = []
                 for entity in self._entities:
-                    if type(entity) == Enemy and entity._target == self._uuid:
-                        entity.move_to(self._player.get_location())
-                        entity.update(dt)
-                        enemy_update.append(entity)
+                    logger.debug(self._player.check_collides(entity))
+                    if type(entity) == Enemy:
+                        if self._player.check_collides(entity):
+                            self._player._hp -= entity._atack
+                            if self._player._hp <= 0:
+                                self._player._color = (128,0,0,255)
+                        if entity._target == self._uuid:
+                            entity.move_to(self._player.get_location())
+                            entity.update(dt)
+                            enemy_update.append(entity)
                 for enemy in enemy_update:
                     payload['entities'].append(enemy.serialize())
         self._ws_client.send(payload)
+
+    def check_if_player_alive(self):
+        logger.info(f'check_if_player_alive: {self._player._hp=}')
+        return self._player._hp if self._player._hp > 0 else None
 
     def handle_message(self, message):
         # Handle received message from the server
