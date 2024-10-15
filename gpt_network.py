@@ -17,12 +17,17 @@ class WebSocketServer:
         self.entities = [{
             'type': 'enemy',
             'uuid': str(uuid.uuid4()),
-            'location' : { 'x' : choice([randint(0,128), randint(1152,1280)]), 'y': choice([randint(0,128),randint(592,720)])},
-            'velocity' : { 'x' : 0, 'y': 0},
+            'location': {
+                'x': choice([randint(0, 128), randint(1152, 1280)]), 
+                'y': choice([randint(0, 128), randint(592, 720)])
+            },
+            'velocity': {'x': 0, 'y': 0},
             'sprite': None,
             'facing_left': False,
             'target': None
         } for _ in range(6)]
+        self.last_message_time = asyncio.get_event_loop().time()  # Track last message time
+        self.update_interval = 1.0  # Update interval in seconds
 
     async def handler(self, websocket, path):
         # Wait for the initial message containing the UUID
@@ -40,7 +45,7 @@ class WebSocketServer:
             logger.info(f"Client connected: {client_id}")
             for entity in self.entities:
                 if 'type' in entity.keys() and entity['type'] == 'enemy':
-                    if entity['target'] == None:
+                    if entity['target'] is None:
                         entity['target'] = client_id
                     else:
                         entity['target'] = choice(list(self.connected_clients.keys()))
@@ -56,25 +61,23 @@ class WebSocketServer:
         finally:
             if client_id in self.connected_clients:
                 del self.connected_clients[client_id]
-                client_idx = None
-                for idx, client in enumerate(self.entities):
-                    if client['uuid'] == client_id:
-                        client_idx = idx
+                client_idx = next((idx for idx, client in enumerate(self.entities) if client['uuid'] == client_id), None)
                 if client_idx:
                     logger.info('Removing client from current entities list.')
                     self.entities.pop(client_idx)
-                else:
-                    logger.info('Client not found in entity list.')
                 await asyncio.sleep(0.1)
                 await self.broadcast(None, {"remove": client_id})
                 logger.info(f"Client disconnected: {client_id}")
 
     async def handle_message(self, client_id, message):
         logger.debug(f"Received message from {client_id}: {message}")
-        
+
+        # Update the last message time
+        self.last_message_time = asyncio.get_event_loop().time()
+
         data = json.loads(message)
-        
-        if type(data) == type({}) and 'entities' in data.keys():
+
+        if isinstance(data, dict) and 'entities' in data.keys():
             for r_entity in data['entities']:
                 found = False
                 for idx, entity in enumerate(self.entities):
@@ -83,7 +86,7 @@ class WebSocketServer:
                         found = True
                 if not found:
                     self.entities.append(r_entity)
-        
+
         # Create combined payload
         combined_payload = {
             "entities": self.entities
@@ -102,10 +105,37 @@ class WebSocketServer:
                 except Exception as e:
                     logger.error(f"Error sending message to {client_id}: {e}")
 
+    async def update_entities(self):
+        while self.running:
+            current_time = asyncio.get_event_loop().time()
+            if current_time - self.last_message_time > self.update_interval:
+                logger.info("Running update due to inactivity.")
+                self.update()  # Call the update method
+                # Optionally, broadcast the updated state if necessary
+                await self.broadcast(None, {"entities": self.entities})
+            await asyncio.sleep(0.1)  # Adjust sleep time as needed
+
+    def update(self):
+        for entity in self.entities:
+            new_x = entity['location']['x'] + entity['velocity']['x']
+            new_y = entity['location']['y'] + entity['velocity']['y']
+            new_x = 0 if new_x < 0 else new_x
+            new_x = 1280 if new_x > 1280 else new_x
+            new_y = 0 if new_y < 0 else new_y
+            new_y = 720 if new_y > 720 else new_y
+            entity['location']['x'] = new_x
+            entity['location']['y'] = new_y
+            logger.info(f'Updating Entity position to ({new_x},{new_y})')
+            entity['velocity']['x'] = choice([-200, 0, 200])
+            entity['velocity']['y'] = choice([-200, 0, 200])
+
     def run(self, host='localhost', port=8765):
         start_server = websockets.serve(self.handler, host, port)
         asyncio.get_event_loop().run_until_complete(start_server)
         logger.info(f"WebSocket server started on ws://{host}:{port}")
+
+        # Start the periodic update task
+        asyncio.get_event_loop().create_task(self.update_entities())
 
         # Handle shutdown
         loop = asyncio.get_event_loop()
