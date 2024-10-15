@@ -60,8 +60,8 @@ class Scene:
 
     def handle_message(self, message):
         # Handle received message from the server
-        logger.debug(f'Received message: {type(message)=} {message=}')
-        logger.info(f'Received {len(message.encode("utf-8"))} bytes')
+        logger.debug(f'handle_message: Received message: {type(message)=} {message=}')
+        logger.debug(f'handle_message: Received {len(message.encode("utf-8"))} bytes')
         data = json.loads(message)
         if 'entities' in data.keys():
             for remote_entity in data['entities']:
