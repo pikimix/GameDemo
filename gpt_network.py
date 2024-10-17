@@ -88,7 +88,7 @@ class WebSocketServer:
                 if client_idx:
                     logger.info('Removing from current entities list.')
                     self.entities.pop(client_idx)
-                enemy_targets = [idx for idx, entity in enumerate(self.entities) if self.entities['target'] == client_id]
+                enemy_targets = [idx for idx, entity in enumerate(self.entities) if entity['target'] == client_id]
                 logger.info('Removing enemies targeting client')
                 for idx in sorted(enemy_targets, reverse=True):
                     self.entities.pop(idx)
