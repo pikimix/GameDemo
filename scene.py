@@ -32,8 +32,16 @@ class Scene:
                 {'player': self._sprite_list.get_sprite('player')}, self._uuid)
         self._font = pg.font.SysFont('Ariel', 30)
         self._score = 0
+        self._last_start = 0
 
     def update(self, dt: float) -> None:
+        if not self._player.is_alive:
+            keys = pg.key.get_pressed()
+            if keys[pg.K_SPACE]:
+                self._score = 0
+                self._last_start = pg.time.get_ticks()
+                self._player.respawn(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
+                {'player': self._sprite_list.get_sprite('player')}, self._uuid)
         self._player.update(dt, self._screen.get_rect())
         payload = {'uuid':str(self._uuid), 'entities':[]}
         enemy_update = []
@@ -44,7 +52,8 @@ class Scene:
                     was_alive = self._player.is_alive
                     self._player.damage(entity._atack)
                     if not self._player.is_alive and self._player.is_alive != was_alive:
-                        self._score = pg.time.get_ticks()
+                        self._score = pg.time.get_ticks() - self._last_start
+                        self._ws_client.send({'uuid':str(self._uuid), 'score':self._score})
                 if entity._target == self._uuid:
                     entity.move_to(self._player.get_location())
                     entity.update(dt)
@@ -113,7 +122,7 @@ class Scene:
                 entity.draw(self._screen, (255,255,0,255))
         if self._player.is_alive:
             self._player.draw(self._screen)
-            score = self._score if self._score else pg.time.get_ticks()
+            score = self._score if self._score else pg.time.get_ticks() - self._last_start
             text_surface = self._font.render(f'Score: {score}', False, (0, 0, 0))
             self._screen.blit(text_surface, (0,0))
         else:
