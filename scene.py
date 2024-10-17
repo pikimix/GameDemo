@@ -44,7 +44,7 @@ class Scene:
                 self._player.respawn(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
                 {'player': self._sprite_list.get_sprite('player')}, self._uuid)
         self._player.update(dt, self._screen.get_rect())
-        payload = {'uuid':str(self._uuid), 'entities':[]}
+        payload = {'uuid':str(self._uuid), 'name': self._name, 'entities':[]}
         enemy_update = []
         for entity in self._entities:
             logger.debug(self._player.check_collides(entity))
