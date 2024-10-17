@@ -79,22 +79,21 @@ class WebSocketServer:
         finally:
             if client_id in self.connected_clients:
                 logger.info(f'Received disconnect from {client_id}')
-                logger.info(f'Removing from connected clients')
+                logger.debug(f'Removing from connected clients')
                 del self.connected_clients[client_id]
                 if client_id in self.scores.keys():
-                    logger.info(f'Removing from scores')
+                    logger.debug(f'Removing from scores')
                     del self.scores[client_id]
                 client_idx = next((idx for idx, client in enumerate(self.entities) if client['uuid'] == client_id), None)
                 if client_idx:
-                    logger.info('Removing from current entities list.')
+                    logger.debug('Removing from current entities list.')
                     self.entities.pop(client_idx)
                 enemy_targets = [idx for idx, entity in enumerate(self.entities) if entity['target'] == client_id]
-                logger.info('Removing enemies targeting client')
+                logger.debug('Removing enemies targeting client')
                 for idx in sorted(enemy_targets, reverse=True):
                     self.entities.pop(idx)
                 await asyncio.sleep(0.1)
                 await self.broadcast(None, {"remove": client_id})
-                logger.info(f"Client disconnected: {client_id}")
 
     async def handle_message(self, client_id, message):
         logger.debug(f"Received message from {client_id}: {message}")
@@ -138,7 +137,7 @@ class WebSocketServer:
         while self.running:
             current_time = asyncio.get_event_loop().time()
             if current_time - self.last_message_time > self.update_interval:
-                logger.info("Running update due to inactivity.")
+                logger.debug("Running update due to inactivity.")
                 self.update()  # Call the update method
                 # Optionally, broadcast the updated state if necessary
                 await self.broadcast(None, {"entities": self.entities})
@@ -154,7 +153,7 @@ class WebSocketServer:
             new_y = 720 if new_y > 720 else new_y
             entity['location']['x'] = new_x
             entity['location']['y'] = new_y
-            logger.info(f'Updating Entity position to ({new_x},{new_y})')
+            logger.debug(f'Updating Entity position to ({new_x},{new_y})')
             entity['velocity']['x'] = choice([-200, 0, 200])
             entity['velocity']['y'] = choice([-200, 0, 200])
 
