@@ -29,13 +29,15 @@ class Scene:
                 self._entities.append(Enemy(loc))
         self._sprite_list = SpriteSet({'player': 'assets/player.png'})
         self._player = Player(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
-                {'player': self._sprite_list.get_sprite('player')}, self._uuid)
+                {'player': self._sprite_list.get_sprite('player')}, self._uuid, name)
         self._font = pg.font.SysFont('Ariel', 30)
         self._score = 0
+        self._leader_board = {} 
         self._last_start = 0
         self._name = name
 
     def update(self, dt: float) -> None:
+        payload = {'uuid':str(self._uuid), 'name': self._name, 'entities':[]}
         if not self._player.is_alive:
             keys = pg.key.get_pressed()
             if keys[pg.K_SPACE]:
@@ -43,8 +45,10 @@ class Scene:
                 self._last_start = pg.time.get_ticks()
                 self._player.respawn(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
                 {'player': self._sprite_list.get_sprite('player')}, self._uuid)
+        else:
+            self._score = pg.time.get_ticks() - self._last_start
+            payload['score'] = self._score
         self._player.update(dt, self._screen.get_rect())
-        payload = {'uuid':str(self._uuid), 'name': self._name, 'entities':[]}
         enemy_update = []
         for entity in self._entities:
             logger.debug(self._player.check_collides(entity))
@@ -54,7 +58,7 @@ class Scene:
                     self._player.damage(entity._atack)
                     if not self._player.is_alive and self._player.is_alive != was_alive:
                         self._score = pg.time.get_ticks() - self._last_start
-                        self._ws_client.send({'uuid':str(self._uuid), 'score':self._score})
+                        self._ws_client.send({'uuid':str(self._uuid), 'name': self._name, 'score':self._score})
                 if entity._target == self._uuid:
                     entity.move_to(self._player.get_location())
                     entity.update(dt)
@@ -110,6 +114,8 @@ class Scene:
                 self._entities.pop(remove_idx)
             else:
                 logger.info(f'handle_message:Could not find {data["remove"]}')
+        elif 'scores' in data.keys():
+            self._leader_board = data['scores']
 
     def quit(self):
         self._ws_client.stop()
@@ -121,10 +127,11 @@ class Scene:
                 entity.draw(self._screen)
             else:
                 entity.draw(self._screen, (255,255,0,255))
+        self.draw_scoreboard()
         if self._player.is_alive:
             self._player.draw(self._screen)
             score = self._score if self._score else pg.time.get_ticks() - self._last_start
-            text_surface = self._font.render(f'Score: {score}', False, (0, 0, 0))
+            text_surface = self._font.render(f'Current Score: {score}', False, (0, 0, 0))
             self._screen.blit(text_surface, (0,0))
         else:
             game_over = self._font.render(f'Game Over', True, (128, 0, 0))
@@ -139,3 +146,17 @@ class Scene:
             self._screen.blit(retry_text, 
                                 (self._screen.get_width()/2 - retry_text.get_width()/2,
                                 self._screen.get_height()/2 + retry_text.get_height() + score_text.get_height()/2))
+            
+    def draw_scoreboard(self):
+        score_header = self._font.render(f'All Player Top Scores', True, [0,0,0])
+        score_lines = [score_header]
+        line_height = 0
+        for p_uuid, board in self._leader_board.items():
+            line = self._font.render(f'{board["name"]}: {board["score"]}', True, [0,0,0])
+            line_height = line.get_height()
+            score_lines.append(line)
+        for idx, line in enumerate(score_lines):
+            self._screen.blit(
+                line,
+                (0,line_height*(idx+3))
+            )
