@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 class Scene:
-    def __init__(self, debug: bool=False, url: str='localhost', port: int=6789) -> None:
+    def __init__(self, name:str, debug: bool=False, url: str='localhost', port: int=6789) -> None:
         self._uuid = uuid.uuid4()
         logger.info(self._uuid)
         self._ws_client = WebSocketClient(f'ws://{url}:{port}')
@@ -33,6 +33,7 @@ class Scene:
         self._font = pg.font.SysFont('Ariel', 30)
         self._score = 0
         self._last_start = 0
+        self._name = name
 
     def update(self, dt: float) -> None:
         if not self._player.is_alive:

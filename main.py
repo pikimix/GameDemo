@@ -16,6 +16,7 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 parser = argparse.ArgumentParser()
+parser.add_argument("-n", "--name", help="Player name", required=True)
 parser.add_argument("-u", "--url", help="Server URL to connect to, or IP to listen on as server", required=False, default="localhost")
 parser.add_argument("-p", "--port", help="Server port to connect to, or listen on as server", required=False, default=8765)
 parser.add_argument("-d", "--debug", help="Run with debug flags", action='store_true')
@@ -24,6 +25,7 @@ args = parser.parse_args()
 DEBUG = args.debug
 url = args.url
 port = args.port
+name = args.name
 
 # if server:
 #     os.environ["SDL_VIDEODRIVER"] = "dummy"
@@ -47,7 +49,7 @@ scene = None
 #     scene = Scene(debug=DEBUG, server=server, port=port)
 #     print("Server starting, press ctrl+c to exit.")
 # else:
-scene = Scene(debug=DEBUG, url=url, port=port)
+scene = Scene(name, debug=DEBUG, url=url, port=port)
 
 while running:
     # poll for events
