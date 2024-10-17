@@ -75,6 +75,5 @@ while running:
     # independent physics.
     dt = clock.tick(60) / 1000
 
-print(f"Congratulations! You survived for {pygame.time.get_ticks()}ms!")
 scene.quit()
 pygame.quit()
