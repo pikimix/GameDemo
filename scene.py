@@ -36,36 +36,30 @@ class Scene:
     def update(self, dt: float) -> None:
         self._player.update(dt)
         payload = {'uuid':str(self._uuid), 'entities':[]}
-        if self._ws_client:
-            send_data = self._player.serialize()
-            send_data['type'] = 'player'
-            send_data['timestamp'] = pg.time.get_ticks()
-            logger.debug(send_data)
-            payload['entities'].append(send_data)
-            # self._ws_client.send(send_data)
+        enemy_update = []
+        for entity in self._entities:
+            logger.debug(self._player.check_collides(entity))
+            if type(entity) == Enemy:
+                if self._player.check_collides(entity):
+                    was_alive = self._player.is_alive
+                    self._player.damage(entity._atack)
+                    if not self._player.is_alive and self._player.is_alive != was_alive:
+                        self._score = pg.time.get_ticks()
+                if entity._target == self._uuid:
+                    entity.move_to(self._player.get_location())
+                    entity.update(dt)
+                    enemy_update.append(entity)
+        for enemy in enemy_update:
+            payload['entities'].append(enemy.serialize())
+
+        send_data = self._player.serialize()
+        send_data['type'] = 'player'
+        send_data['timestamp'] = pg.time.get_ticks()
+        logger.debug(send_data)
+        payload['entities'].append(send_data)
         
-        if not self._ws_client.running:
-            for entity in self._entities:
-                entity.move_to(self._player.get_location())
-                entity.update(dt)
-                logger.debug(f"{entity.get_location()=}")
-        else:
-                enemy_update = []
-                for entity in self._entities:
-                    logger.debug(self._player.check_collides(entity))
-                    if type(entity) == Enemy:
-                        if self._player.check_collides(entity):
-                            was_alive = self._player.is_alive
-                            self._player.damage(entity._atack)
-                            if not self._player.is_alive and self._player.is_alive != was_alive:
-                                self._score = pg.time.get_ticks()
-                        if entity._target == self._uuid:
-                            entity.move_to(self._player.get_location())
-                            entity.update(dt)
-                            enemy_update.append(entity)
-                for enemy in enemy_update:
-                    payload['entities'].append(enemy.serialize())
-        self._ws_client.send(payload)
+        if self._ws_client.running:
+            self._ws_client.send(payload)
 
     def check_if_player_alive(self):
         logger.info(f'check_if_player_alive: {self._player.is_alive=}')
