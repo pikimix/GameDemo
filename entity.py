@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 class Entity:
-    def __init__(self, location: pg.Vector2, sprite: dict=None, uuid=None) -> None:
+    def __init__(self, location: pg.Vector2, sprite: dict=None, uuid=None, name:str=None) -> None:
         self.uuid = uuid
         self._location = location
         self._sprite = None
@@ -21,6 +21,8 @@ class Entity:
         self._hp = 100
         self._atack = 10
         self.is_alive = True
+        self._name = name
+        self._font = pg.font.SysFont('Futura', 30)
 
     @staticmethod
     def from_dict(entity: dict, sprite_list: SpriteSet, e_uuid):
@@ -123,13 +125,19 @@ class Entity:
     def draw(self, screen, color=(255,0,0,255)):
         if self._sprite:
             self._sprite.draw(screen, self._location, flip=self._facing_left, color=color)
+            if self._name:
+                name = self._font.render(self._name, True, (0, 0, 0))
+                name_pos = self.get_location()
+                name_pos.x -= name.get_width()/2
+                name_pos.y += self._sprite.height/2
+                screen.blit(name, name_pos)
         else:
             pg.draw.circle(screen, (255,0,0,255), self._location, radius=10, width=0)
 
 class Enemy(Entity):
-    def __init__(self, location: pg.Vector2, sprite: dict = None, uuid=None, target_uuid=None) -> None:
+    def __init__(self, location: pg.Vector2, sprite: dict = None, uuid=None, target_uuid=None, name:str=None) -> None:
         self._target = target_uuid
-        super().__init__(location, sprite, uuid)
+        super().__init__(location, sprite, uuid, name)
     
     @staticmethod
     def from_dict(enemy: dict, sprite_list: SpriteSet, e_uuid, target_uuid):
@@ -171,9 +179,9 @@ class Enemy(Entity):
                 super().move_to(player['position'])
 
 class Player(Entity):
-    def __init__(self, location, sprite, uuid) -> None:
+    def __init__(self, location, sprite, uuid, name:str=None) -> None:
         self._color = (0,0,128,255)
-        super().__init__(location, sprite, uuid)
+        super().__init__(location, sprite, uuid, name)
 
     def update(self, dt, bounds:pg.Rect) -> None:
         keys = pg.key.get_pressed()
