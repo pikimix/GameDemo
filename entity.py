@@ -30,7 +30,10 @@ class Entity:
         sprite = None
         if entity['sprite']:
             sprite = { entity['sprite']: sprite_list.get_sprite(entity['sprite']) }
-        new_entity = Entity(loc, sprite, e_uuid)
+        name = None
+        if 'name' in entity.keys():
+            name = entity['name']
+        new_entity = Entity(loc, sprite, e_uuid, name)
         new_entity._facing_left= entity['facing_left']
         new_entity._velocity = pg.Vector2(entity['velocity']['x'], entity['velocity']['y'])
         return new_entity
