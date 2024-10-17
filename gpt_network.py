@@ -121,7 +121,9 @@ class WebSocketServer:
                     if data['score'] > self.scores[data['uuid']]:
                         self.scores[data['uuid']] = data['score']
                         logger.info(f'Set score for {data["uuid"]} to {data["score"]}')
-
+                else:
+                    self.scores[data['uuid']] = data['score']
+                    logger.info(f'Set score for {data["uuid"]} to {data["score"]}')
 
     async def broadcast(self, sender_id, message):
         logger.debug(f'Broadcast Message: {message=}')
