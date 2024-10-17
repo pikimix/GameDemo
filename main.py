@@ -16,24 +16,27 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-s", "--server", help="Run the process as a headless server", action='store_true')
+parser.add_argument("-n", "--name", help="Player name", required=True)
 parser.add_argument("-u", "--url", help="Server URL to connect to, or IP to listen on as server", required=False, default="localhost")
 parser.add_argument("-p", "--port", help="Server port to connect to, or listen on as server", required=False, default=8765)
 parser.add_argument("-d", "--debug", help="Run with debug flags", action='store_true')
 args = parser.parse_args()
 
 DEBUG = args.debug
-server = args.server
 url = args.url
 port = args.port
+name = args.name
 
-if server:
-    os.environ["SDL_VIDEODRIVER"] = "dummy"
+# if server:
+#     os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 signal.signal(signal.SIGINT, signal_handler)
 
 # pygame setup
 pygame.init()
+
+# initialise font support
+pygame.font.init()
 
 # set the clock
 clock = pygame.time.Clock()
@@ -42,11 +45,11 @@ dt = 0
 
 # create the scene manager
 scene = None
-if server:
-    scene = Scene(debug=DEBUG, server=server, port=port)
-    print("Server starting, press ctrl+c to exit.")
-else:
-    scene = Scene(debug=DEBUG, url=url, port=port)
+# if server:
+#     scene = Scene(debug=DEBUG, server=server, port=port)
+#     print("Server starting, press ctrl+c to exit.")
+# else:
+scene = Scene(name, debug=DEBUG, url=url, port=port)
 
 while running:
     # poll for events
@@ -59,6 +62,10 @@ while running:
     # update the current scene
     scene.update(dt)
 
+    # Check if the player is alive
+    # if not scene.check_if_player_alive():
+    #     running = False
+
     # draw current scene
     scene.draw()
 
@@ -70,4 +77,5 @@ while running:
     # independent physics.
     dt = clock.tick(60) / 1000
 
+scene.quit()
 pygame.quit()
