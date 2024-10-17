@@ -33,6 +33,23 @@ class Entity:
         new_entity._velocity = pg.Vector2(entity['velocity']['x'], entity['velocity']['y'])
         return new_entity
 
+    def respawn(self, location: pg.Vector2, sprite: dict=None, uuid=None):
+        self.uuid = uuid
+        self._location = location
+        self._sprite = None
+        self._sprite_name = None
+        if sprite:
+            for k,v in sprite.items():
+                self._sprite_name = k
+                self._sprite = Sprite(v)
+        else:
+            self._sprite = Sprite(None)
+        self._facing_left = False
+        self._velocity = pg.Vector2(0,0)
+        self._hp = 100
+        self._atack = 10
+        self.is_alive = True
+
     def damage(self, damage):
         self._hp -= damage
         if self._hp <= 0:
