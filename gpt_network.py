@@ -14,20 +14,24 @@ class WebSocketServer:
         self.connected_clients = {}
         self.messages = asyncio.Queue()  # Use an asyncio.Queue for safe access
         self.running = True
-        self.entities = [{
-            'type': 'enemy',
-            'uuid': str(uuid.uuid4()),
-            'location': {
-                'x': choice([randint(0, 128), randint(1152, 1280)]), 
-                'y': choice([randint(0, 128), randint(592, 720)])
-            },
-            'velocity': {'x': 0, 'y': 0},
-            'sprite': None,
-            'facing_left': False,
-            'target': None
-        } for _ in range(6)]
+        self.entities = []
+        # [
+        #     {
+        #         'type': 'enemy',
+        #         'uuid': str(uuid.uuid4()),
+        #         'location': {
+        #             'x': choice([randint(0, 128), randint(1152, 1280)]), 
+        #             'y': choice([randint(0, 128), randint(592, 720)])
+        #         },
+        #         'velocity': {'x': 0, 'y': 0},
+        #         'sprite': None,
+        #         'facing_left': False,
+        #         'target': None
+        #     } for _ in range(6)
+        # ]
         self.last_message_time = asyncio.get_event_loop().time()  # Track last message time
         self.update_interval = 1.0  # Update interval in seconds
+        self.scores = {}
 
     async def handler(self, websocket, path):
         # Wait for the initial message containing the UUID
@@ -60,40 +64,50 @@ class WebSocketServer:
 
         finally:
             if client_id in self.connected_clients:
+                logger.info(f'Received disconnect from {client_id}')
+                logger.info(f'Removing from connected clients')
                 del self.connected_clients[client_id]
+                logger.info(f'Removing from scores')
+                del self.scores[client_id]
                 client_idx = next((idx for idx, client in enumerate(self.entities) if client['uuid'] == client_id), None)
                 if client_idx:
-                    logger.info('Removing client from current entities list.')
+                    logger.info('Removing from current entities list.')
                     self.entities.pop(client_idx)
+                enemy_targets = [idx for idx, entity in enumerate(self.entities) if self.entities['target'] == client_id]
+                logger.info('Removing enemies targeting client')
+                for idx in sorted(enemy_targets, reverse=True):
+                    self.entities.pop(idx)
                 await asyncio.sleep(0.1)
                 await self.broadcast(None, {"remove": client_id})
                 logger.info(f"Client disconnected: {client_id}")
 
     async def handle_message(self, client_id, message):
         logger.debug(f"Received message from {client_id}: {message}")
-
         # Update the last message time
         self.last_message_time = asyncio.get_event_loop().time()
-
         data = json.loads(message)
+        if isinstance(data, dict):
+            if 'entities' in data.keys():
+                for r_entity in data['entities']:
+                    found = False
+                    for idx, entity in enumerate(self.entities):
+                        if r_entity['uuid'] == str(entity['uuid']):
+                            self.entities[idx] = r_entity
+                            found = True
+                    if not found:
+                        self.entities.append(r_entity)
+                # Create combined payload
+                combined_payload = {
+                    "entities": self.entities
+                }
+                # Broadcast the combined message to all connected clients
+                await self.broadcast(client_id, combined_payload)
+            if 'score' in data.keys():
+                if data['uuid'] in self.scores.keys():
+                    if data['score'] > self.scores[data['uuid']]:
+                        self.scores[data['uuid']] = data['score']
+                        logger.info(f'Set score for {data['uuid']} to {data['score']}')
 
-        if isinstance(data, dict) and 'entities' in data.keys():
-            for r_entity in data['entities']:
-                found = False
-                for idx, entity in enumerate(self.entities):
-                    if r_entity['uuid'] == str(entity['uuid']):
-                        self.entities[idx] = r_entity
-                        found = True
-                if not found:
-                    self.entities.append(r_entity)
-
-        # Create combined payload
-        combined_payload = {
-            "entities": self.entities
-        }
-
-        # Broadcast the combined message to all connected clients
-        await self.broadcast(client_id, combined_payload)
 
     async def broadcast(self, sender_id, message):
         logger.debug(f'Broadcast Message: {message=}')
