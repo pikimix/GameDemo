@@ -88,7 +88,7 @@ class WebSocketServer:
                 if client_idx:
                     logger.debug('Removing from current entities list.')
                     self.entities.pop(client_idx)
-                enemy_targets = [idx for idx, entity in enumerate(self.entities) if entity['target'] == client_id]
+                enemy_targets = [idx for idx, entity in enumerate(self.entities) if entity['type'] == 'enemy' and entity['target'] == client_id]
                 logger.debug('Removing enemies targeting client')
                 for idx in sorted(enemy_targets, reverse=True):
                     self.entities.pop(idx)
@@ -118,12 +118,13 @@ class WebSocketServer:
                 await self.broadcast(client_id, combined_payload)
             if 'score' in data.keys():
                 if data['uuid'] in self.scores.keys():
-                    if data['score'] > self.scores[data['uuid']]:
-                        self.scores[data['uuid']] = data['score']
-                        logger.info(f'Set score for {data["uuid"]} to {data["score"]}')
+                    if data['score'] > self.scores[data['uuid']]['score']:
+                        self.scores[data['uuid']] = {'name': data['name'], 'score': data['score']}
+                        logger.info(f'Set score for {data["uuid"]} to {self.scores[data["uuid"]]}')
                 else:
-                    self.scores[data['uuid']] = data['score']
-                    logger.info(f'Set score for {data["uuid"]} to {data["score"]}')
+                    self.scores[data['uuid']] = {'name': data['name'], 'score': data['score']}
+                    logger.info(f'Set score for {data["uuid"]} to {self.scores[data["uuid"]]}')
+                    await self.broadcast(None, {'scores':self.scores})
 
     async def broadcast(self, sender_id, message):
         logger.debug(f'Broadcast Message: {message=}')
