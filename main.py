@@ -61,8 +61,8 @@ while running:
     scene.update(dt)
 
     # Check if the player is alive
-    if not scene.check_if_player_alive():
-        running = False
+    # if not scene.check_if_player_alive():
+    #     running = False
 
     # draw current scene
     scene.draw()

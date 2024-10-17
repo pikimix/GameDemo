@@ -31,6 +31,7 @@ class Scene:
         self._player = Player(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
                 {'player': self._sprite_list.get_sprite('player')}, self._uuid)
         self._font = pg.font.SysFont('Ariel', 30)
+        self._score = 0
 
     def update(self, dt: float) -> None:
         self._player.update(dt)
@@ -54,9 +55,10 @@ class Scene:
                     logger.debug(self._player.check_collides(entity))
                     if type(entity) == Enemy:
                         if self._player.check_collides(entity):
-                            self._player._hp -= entity._atack
-                            if self._player._hp <= 0:
-                                self._player._color = (128,0,0,255)
+                            was_alive = self._player.is_alive
+                            self._player.damage(entity._atack)
+                            if not self._player.is_alive and self._player.is_alive != was_alive:
+                                self._score = pg.time.get_ticks()
                         if entity._target == self._uuid:
                             entity.move_to(self._player.get_location())
                             entity.update(dt)
@@ -66,8 +68,8 @@ class Scene:
         self._ws_client.send(payload)
 
     def check_if_player_alive(self):
-        logger.info(f'check_if_player_alive: {self._player._hp=}')
-        return self._player._hp if self._player._hp > 0 else None
+        logger.info(f'check_if_player_alive: {self._player.is_alive=}')
+        return self._player.is_alive
 
     def handle_message(self, message):
         # Handle received message from the server
@@ -115,6 +117,21 @@ class Scene:
                 entity.draw(self._screen)
             else:
                 entity.draw(self._screen, (255,255,0,255))
-        self._player.draw(self._screen)
-        text_surface = self._font.render(f'Score: {pg.time.get_ticks()}', False, (0, 0, 0))
-        self._screen.blit(text_surface, (0,0))
+        if self._player.is_alive:
+            self._player.draw(self._screen)
+            score = self._score if self._score else pg.time.get_ticks()
+            text_surface = self._font.render(f'Score: {score}', False, (0, 0, 0))
+            self._screen.blit(text_surface, (0,0))
+        else:
+            game_over = self._font.render(f'Game Over', True, (128, 0, 0))
+            score_text = self._font.render(f'Score for this run: {self._score}',True, (0,0,0))
+            retry_text = self._font.render(f'Press space to retry', True, (0,0,0))
+            self._screen.blit(game_over, 
+                                (self._screen.get_width()/2 - game_over.get_width()/2,
+                                self._screen.get_height()/2 - game_over.get_height() - score_text.get_height()/2))
+            self._screen.blit(score_text, 
+                                (self._screen.get_width()/2 - score_text.get_width()/2,
+                                self._screen.get_height()/2 - score_text.get_height()/2))
+            self._screen.blit(retry_text, 
+                                (self._screen.get_width()/2 - retry_text.get_width()/2,
+                                self._screen.get_height()/2 + retry_text.get_height() + score_text.get_height()/2))

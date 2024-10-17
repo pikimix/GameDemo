@@ -20,6 +20,7 @@ class Entity:
         self._velocity = pg.Vector2(0,0)
         self._hp = 100
         self._atack = 10
+        self.is_alive = True
 
     @staticmethod
     def from_dict(entity: dict, sprite_list: SpriteSet, e_uuid):
@@ -31,6 +32,11 @@ class Entity:
         new_entity._facing_left= entity['facing_left']
         new_entity._velocity = pg.Vector2(entity['velocity']['x'], entity['velocity']['y'])
         return new_entity
+
+    def damage(self, damage):
+        self._hp -= damage
+        if self._hp <= 0:
+            self.is_alive = False
 
     def move_to(self, destination: pg.Vector2):
         if destination.x > self._location.x:
