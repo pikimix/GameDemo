@@ -34,7 +34,7 @@ class Scene:
         self._score = 0
 
     def update(self, dt: float) -> None:
-        self._player.update(dt)
+        self._player.update(dt, self._screen.get_rect())
         payload = {'uuid':str(self._uuid), 'entities':[]}
         enemy_update = []
         for entity in self._entities:
