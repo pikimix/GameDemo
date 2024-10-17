@@ -47,14 +47,28 @@ class WebSocketServer:
 
             self.connected_clients[client_id] = websocket
             logger.info(f"Client connected: {client_id}")
-            for entity in self.entities:
-                if 'type' in entity.keys() and entity['type'] == 'enemy':
-                    if entity['target'] is None:
-                        entity['target'] = client_id
-                    else:
-                        entity['target'] = choice(list(self.connected_clients.keys()))
-                else:
-                    logger.error(f'handler:\'type\' not found in keys for entity {entity}')
+            # add New enemy targeting the new player
+            self.entities.append({
+                'type': 'enemy',
+                'uuid': str(uuid.uuid4()),
+                'location': {
+                    'x': choice([randint(0, 128), randint(1152, 1280)]), 
+                    'y': choice([randint(0, 128), randint(592, 720)])
+                },
+                'velocity': {'x': 0, 'y': 0},
+                'sprite': None,
+                'facing_left': False,
+                'target': client_id
+            })
+            
+            # for entity in self.entities:
+            #     if 'type' in entity.keys() and entity['type'] == 'enemy':
+            #         if entity['target'] is None:
+            #             entity['target'] = client_id
+            #         else:
+            #             entity['target'] = choice(list(self.connected_clients.keys()))
+            #     else:
+            #         logger.error(f'handler:\'type\' not found in keys for entity {entity}')
 
             # Broadcast the combined message to all connected clients
             await self.broadcast(None, {"entities": self.entities})
@@ -67,8 +81,9 @@ class WebSocketServer:
                 logger.info(f'Received disconnect from {client_id}')
                 logger.info(f'Removing from connected clients')
                 del self.connected_clients[client_id]
-                logger.info(f'Removing from scores')
-                del self.scores[client_id]
+                if client_id in self.scores.keys():
+                    logger.info(f'Removing from scores')
+                    del self.scores[client_id]
                 client_idx = next((idx for idx, client in enumerate(self.entities) if client['uuid'] == client_id), None)
                 if client_idx:
                     logger.info('Removing from current entities list.')
@@ -106,7 +121,7 @@ class WebSocketServer:
                 if data['uuid'] in self.scores.keys():
                     if data['score'] > self.scores[data['uuid']]:
                         self.scores[data['uuid']] = data['score']
-                        logger.info(f'Set score for {data['uuid']} to {data['score']}')
+                        logger.info(f'Set score for {data["uuid"]} to {data["score"]}')
 
 
     async def broadcast(self, sender_id, message):
