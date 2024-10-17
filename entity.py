@@ -76,8 +76,17 @@ class Entity:
         else:
             return self._location
 
-    def update(self, dt: float):
+    def update(self, dt: float, bounds:pg.Rect=None):
         self._location += self._velocity * dt
+        if bounds:
+            if self._location.x < bounds.left:
+                self._location.x = bounds.left
+            elif self._location.x + self._sprite.width > bounds.right:
+                self._location.x = bounds.right - self._sprite.width
+            if self._location.y < bounds.top:
+                self._location.y = bounds.top
+            elif self._location.y + self._sprite.height > bounds.bottom:
+                self._location.y = bounds.bottom - self._sprite.height
 
     def net_update(self, remote_entity:dict):
         self._location.x = remote_entity['location']['x']
@@ -149,7 +158,7 @@ class Player(Entity):
         self._color = (0,0,128,255)
         super().__init__(location, sprite, uuid)
 
-    def update(self, dt) -> None:
+    def update(self, dt, bounds:pg.Rect) -> None:
         keys = pg.key.get_pressed()
         if keys[pg.K_w]:
             self._velocity.y = -300
@@ -167,7 +176,7 @@ class Player(Entity):
             self._velocity.x = 0
 
         self._sprite.update()
-        super().update(dt)
+        super().update(dt, bounds)
     
     def draw(self, screen):
         super().draw(screen, color=self._color)
