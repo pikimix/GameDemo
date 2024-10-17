@@ -123,7 +123,9 @@ class Entity:
             'location' : { 'x' : self._location.x, 'y': self._location.y},
             'velocity' : { 'x' : self._velocity.x, 'y': self._velocity.y},
             'sprite': self._sprite_name,
-            'facing_left': self._facing_left
+            'facing_left': self._facing_left,
+            'name' : self._name,
+            'is_alive' : self.is_alive
         }
     def draw(self, screen, color=(255,0,0,255)):
         if self._sprite:
@@ -157,15 +159,10 @@ class Enemy(Entity):
         return super().update(dt)
     
     def serialize(self):
-        return {
-            'uuid': str(self.uuid),
-            'location' : { 'x' : self._location.x, 'y': self._location.y},
-            'velocity' : { 'x' : self._velocity.x, 'y': self._velocity.y},
-            'sprite': self._sprite_name,
-            'facing_left': self._facing_left,
-            'target' : str(self._target),
-            'type' : 'enemy'
-        }
+        ret_val = super().serialize()
+        ret_val['target'] = str(self._target)
+        ret_val['type'] = 'enemy'
+        return ret_val
     
     def net_update(self, remote_entity: dict):
         if self._target != remote_entity['target']:
