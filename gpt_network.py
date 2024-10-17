@@ -124,7 +124,7 @@ class WebSocketServer:
                 else:
                     self.scores[data['uuid']] = {'name': data['name'], 'score': data['score']}
                     logger.info(f'Set score for {data["uuid"]} to {self.scores[data["uuid"]]}')
-                    await self.broadcast(None, {'scores':self.scores})
+                await self.broadcast(None, {'scores':self.scores})
 
     async def broadcast(self, sender_id, message):
         logger.debug(f'Broadcast Message: {message=}')
