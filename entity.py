@@ -93,8 +93,8 @@ class Entity:
 
     def get_location(self):
         if self._sprite:
-            x = self._location.x + (self._sprite.width / 2)
-            y = self._location.y + (self._sprite.height / 2)
+            x = self._location.x + (self._sprite.rect.width / 2)
+            y = self._location.y + (self._sprite.rect.height / 2)
             return pg.Vector2(x, y)
         else:
             return self._location
@@ -104,12 +104,12 @@ class Entity:
         if bounds:
             if self._location.x < bounds.left:
                 self._location.x = bounds.left
-            elif self._location.x + self._sprite.width > bounds.right:
-                self._location.x = bounds.right - self._sprite.width
+            elif self._location.x + self._sprite.rect.width > bounds.right:
+                self._location.x = bounds.right - self._sprite.rect.width
             if self._location.y < bounds.top:
                 self._location.y = bounds.top
-            elif self._location.y + self._sprite.height > bounds.bottom:
-                self._location.y = bounds.bottom - self._sprite.height
+            elif self._location.y + self._sprite.rect.height > bounds.bottom:
+                self._location.y = bounds.bottom - self._sprite.rect.height
 
     def net_update(self, remote_entity:dict):
         self._location.x = remote_entity['location']['x']
@@ -135,7 +135,7 @@ class Entity:
                 name = self._font.render(self._name, True, (0, 0, 0))
                 name_pos = self.get_location()
                 name_pos.x -= name.get_width()/2
-                name_pos.y += self._sprite.height/2
+                name_pos.y += self._sprite.rect.height/2
                 screen.blit(name, name_pos)
         else:
             pg.draw.circle(screen, (255,0,0,255), self._location, radius=10, width=0)
