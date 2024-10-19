@@ -84,9 +84,10 @@ class Entity:
         y_offset = self.get_location().y - other_entity.get_location().y
         offeset = None
         if mask.overlap(other_mask,(x_offset,y_offset)):
-            offeset = (other_entity.get_rect().centerx - self.get_rect().centerx,
-                    other_entity.get_rect().centery - self.get_rect().centery
+            offeset = (self.get_rect().centerx - other_entity.get_rect().centerx,
+                    self.get_rect().centery - other_entity.get_rect().centery
             )
+        logger.info(f'{offeset=}')
         return offeset
 
     def get_rect(self) -> pg.Rect:
