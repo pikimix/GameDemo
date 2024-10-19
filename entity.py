@@ -77,6 +77,12 @@ class Entity:
         else:
             self._velocity.y = 0
 
+
+    def update_position(self, offset: tuple):
+        self._location.x += offset[0]
+        self._location.y += offset[1]
+
+
     def check_collides(self, other_entity:Entity) -> tuple|None:
         mask = self.get_mask()
         other_mask = other_entity.get_mask()
