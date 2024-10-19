@@ -27,7 +27,7 @@ class WebSocketServer:
         #         'sprite': None,
         #         'facing_left': False,
         #         'target': None
-        #     } for _ in range(6)
+        #     }
         # ]
         self.last_message_time = asyncio.get_event_loop().time()  # Track last message time
         self.update_interval = 1.0  # Update interval in seconds
@@ -60,15 +60,6 @@ class WebSocketServer:
                 'facing_left': False,
                 'target': client_id
             })
-            
-            # for entity in self.entities:
-            #     if 'type' in entity.keys() and entity['type'] == 'enemy':
-            #         if entity['target'] is None:
-            #             entity['target'] = client_id
-            #         else:
-            #             entity['target'] = choice(list(self.connected_clients.keys()))
-            #     else:
-            #         logger.error(f'handler:\'type\' not found in keys for entity {entity}')
 
             # Broadcast the combined message to all connected clients
             await self.broadcast(None, {"entities": self.entities})
