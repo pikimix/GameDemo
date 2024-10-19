@@ -13,7 +13,7 @@ class SpriteSet:
         else:
             return None
 
-class Sprite(pg.sprite.Sprite):
+class AnimatedSprite(pg.sprite.Sprite):
     def __init__(self, image: pg.Surface) -> None:
         self.image = None
         self._frame = None

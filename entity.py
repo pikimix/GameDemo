@@ -1,4 +1,4 @@
-from sprite_sheet import Sprite, SpriteSet
+from sprite_sheet import AnimatedSprite, SpriteSet
 import pygame as pg
 import logging
 import uuid
@@ -14,9 +14,9 @@ class Entity:
         if sprite:
             for k,v in sprite.items():
                 self._sprite_name = k
-                self._sprite = Sprite(v)
+                self._sprite = AnimatedSprite(v)
         else:
-            self._sprite = Sprite(None)
+            self._sprite = AnimatedSprite(None)
         self._facing_left = False
         self._velocity = pg.Vector2(0,0)
         self._hp = 100
@@ -47,9 +47,9 @@ class Entity:
         if sprite:
             for k,v in sprite.items():
                 self._sprite_name = k
-                self._sprite = Sprite(v)
+                self._sprite = AnimatedSprite(v)
         else:
-            self._sprite = Sprite(None)
+            self._sprite = AnimatedSprite(None)
         self._facing_left = False
         self._velocity = pg.Vector2(0,0)
         self._hp = 100
