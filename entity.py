@@ -1,6 +1,7 @@
 from sprite_sheet import Sprite, SpriteSet
 import pygame as pg
 import logging
+import uuid
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
@@ -165,9 +166,9 @@ class Enemy(Entity):
         return ret_val
     
     def net_update(self, remote_entity: dict):
-        if self._target != remote_entity['target']:
-            logger.error(f'net_update:{self._target} != {remote_entity["target"]}')
-        self._target = remote_entity['target']
+        if self._target != uuid.UUID(remote_entity['target']):
+            logger.error(f'net_update:{self._target=} != {remote_entity["target"]=}')
+        # self._target = remote_entity['target']
         return super().net_update(remote_entity)
 
     def update_target(self, target_uuid):
