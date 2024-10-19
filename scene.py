@@ -103,7 +103,7 @@ class Scene:
                             target = uuid.UUID(remote_entity['target']) if remote_entity['target'] else None
                             new_entity = Enemy.from_dict(remote_entity, self._sprite_list, remote_uuid, target)
                         self._entities.append(new_entity)
-        elif 'remove' in data.keys():
+        if 'remove' in data.keys():
             logger.info('handle_message:Received remove message')
             if isinstance(data['remove'], list):
                 for r_uuid in data['remove']:
@@ -119,7 +119,7 @@ class Scene:
                     del self._leader_board[r_uuid]
             else:
                 logger.error(f'handle_message: Received incorrectly formatted removal message : {data=}')
-        elif 'scores' in data.keys():
+        if 'scores' in data.keys():
             self._leader_board = data['scores']
 
     def quit(self):
