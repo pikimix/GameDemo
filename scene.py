@@ -32,7 +32,8 @@ class Scene:
                 {'player': self._sprite_list.get_sprite('player')}, self._uuid, name)
         self._font = pg.font.SysFont('Ariel', 30)
         self._score = 0
-        self._leader_board = {} 
+        self._leader_board = {}
+        #{'90565d97-c0c2-411c-9626-ed19874c4110': {'name': 'player1', 'score': 2899}, 'd8016dfb-6a2b-40a6-b2bd-1f338f94e2ca': {'name': 'player2', 'score': 953}}
         self._last_start = 0
         self._name = name
 
@@ -104,16 +105,20 @@ class Scene:
                         self._entities.append(new_entity)
         elif 'remove' in data.keys():
             logger.info('handle_message:Received remove message')
-            remove_idx = None
-            for idx, entity in enumerate(self._entities):
-                if entity.uuid == uuid.UUID(data['remove']):
-                    remove_idx = idx 
-                    logger.info(f'handle_message:Found {data["remove"]}')
-                    break
-            if remove_idx:
-                self._entities.pop(remove_idx)
+            if isinstance(data['remove'], list):
+                for r_uuid in data['remove']:
+                    remove_idx = next((idx for idx, entity in enumerate(self._entities) if entity.uuid == uuid.UUID(r_uuid)), None)
+                    for entity in self._entities:
+                        print(f'{uuid.UUID(r_uuid)=} {entity.uuid=} : {(entity.uuid == uuid.UUID(r_uuid))=}')
+                    if isinstance(remove_idx, int):
+                        logger.info(f'handle_message:Found {r_uuid}')
+                        self._entities.pop(remove_idx)
+                    else:
+                        logger.info(f'handle_message:Could not find {r_uuid}')
+                if r_uuid in self._leader_board.keys():
+                    del self._leader_board[r_uuid]
             else:
-                logger.info(f'handle_message:Could not find {data["remove"]}')
+                logger.error(f'handle_message: Received incorrectly formatted removal message : {data=}')
         elif 'scores' in data.keys():
             self._leader_board = data['scores']
 

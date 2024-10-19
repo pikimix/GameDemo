@@ -81,10 +81,13 @@ class WebSocketServer:
                     self.entities.pop(client_idx)
                 enemy_targets = [idx for idx, entity in enumerate(self.entities) if entity['type'] == 'enemy' and entity['target'] == client_id]
                 logger.debug('Removing enemies targeting client')
+                removals = [client_id]
                 for idx in sorted(enemy_targets, reverse=True):
-                    self.entities.pop(idx)
+                    # remove from list and broadcast removal to remaining clients
+                    removals.append(self.entities.pop(idx)['uuid'])
                 await asyncio.sleep(0.1)
-                await self.broadcast(None, {"remove": client_id})
+
+                await self.broadcast(None, {"remove": removals})
 
     async def handle_message(self, client_id, message):
         logger.debug(f"Received message from {client_id}: {message}")
