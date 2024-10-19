@@ -54,14 +54,23 @@ class Scene:
         for entity in self._entities:
             logger.debug(self._player.check_collides(entity))
             if type(entity) == Enemy:
-                if entity.check_collides(self._player):
+                collides = entity.check_collides(self._player)
+                if collides:
                     was_alive = self._player.is_alive
                     self._player.damage(entity._atack)
                     if not self._player.is_alive and was_alive:
                         self._score = pg.time.get_ticks() - self._last_start
                         payload['score'] = self._score
                 if entity._target == self._uuid:
-                    entity.move_to(self._player.get_location())
+                    if not collides:
+                        entity.move_to(self._player.get_location())
+                        for other in self._entities:
+                            if type(other) == Entity:
+                                other_collides = entity.check_collides(other)
+                                if other_collides:
+                                    entity.update_position(other_collides)
+                    else:
+                        entity.update_position(collides)
                     entity.update(dt)
                     enemy_update.append(entity)
         for enemy in enemy_update:
