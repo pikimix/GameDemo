@@ -54,12 +54,12 @@ class Scene:
         for entity in self._entities:
             logger.debug(self._player.check_collides(entity))
             if type(entity) == Enemy:
-                if self._player.check_collides(entity):
+                if entity.check_collides(self._player):
                     was_alive = self._player.is_alive
                     self._player.damage(entity._atack)
-                    if not self._player.is_alive and self._player.is_alive != was_alive:
+                    if not self._player.is_alive and was_alive:
                         self._score = pg.time.get_ticks() - self._last_start
-                        self._ws_client.send({'uuid':str(self._uuid), 'name': self._name, 'score':self._score})
+                        payload['score'] = self._score
                 if entity._target == self._uuid:
                     entity.move_to(self._player.get_location())
                     entity.update(dt)
@@ -136,7 +136,7 @@ class Scene:
         if self._player.is_alive:
             self._player.draw(self._screen)
             score = self._score if self._score else pg.time.get_ticks() - self._last_start
-            text_surface = self._font.render(f'Current Score: {score}', False, (0, 0, 0))
+            text_surface = self._font.render(f'Current Score: {score}', True, (0, 0, 0))
             self._screen.blit(text_surface, (0,0))
         else:
             game_over = self._font.render(f'Game Over', True, (128, 0, 0))
