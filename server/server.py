@@ -15,7 +15,7 @@ class WebSocketServer:
         self.messages = asyncio.Queue()  # Use an asyncio.Queue for safe access
         self.running = True
         self.entities = []
-        # [
+        # self.entities = [
         #     {
         #         'type': 'enemy',
         #         'uuid': str(uuid.uuid4()),
@@ -130,37 +130,14 @@ class WebSocketServer:
                 except Exception as e:
                     logger.error(f"Error sending message to {client_id}: {e}")
 
-    async def update_entities(self):
-        while self.running:
-            current_time = asyncio.get_event_loop().time()
-            if current_time - self.last_message_time > self.update_interval:
-                logger.debug("Running update due to inactivity.")
-                self.update()  # Call the update method
-                # Optionally, broadcast the updated state if necessary
-                await self.broadcast(None, {"entities": self.entities})
-            await asyncio.sleep(0.1)  # Adjust sleep time as needed
-
-    def update(self):
-        for entity in self.entities:
-            new_x = entity['location']['x'] + entity['velocity']['x']
-            new_y = entity['location']['y'] + entity['velocity']['y']
-            new_x = 0 if new_x < 0 else new_x
-            new_x = 1280 if new_x > 1280 else new_x
-            new_y = 0 if new_y < 0 else new_y
-            new_y = 720 if new_y > 720 else new_y
-            entity['location']['x'] = new_x
-            entity['location']['y'] = new_y
-            logger.debug(f'Updating Entity position to ({new_x},{new_y})')
-            entity['velocity']['x'] = choice([-200, 0, 200])
-            entity['velocity']['y'] = choice([-200, 0, 200])
-
-    def run(self, host='localhost', port=8765):
+    def run(self, update_function=None, host='localhost', port=8765):
         start_server = websockets.serve(self.handler, host, port)
         asyncio.get_event_loop().run_until_complete(start_server)
         logger.info(f"WebSocket server started on ws://{host}:{port}")
 
         # Start the periodic update task
-        asyncio.get_event_loop().create_task(self.update_entities())
+        if update_function:
+            asyncio.get_event_loop().create_task(update_function(self))
 
         # Handle shutdown
         loop = asyncio.get_event_loop()
