@@ -83,8 +83,8 @@ class Entity:
     def check_collides(self, other_entity:Entity) -> tuple|None:
         mask = self.get_mask()
         other_mask = other_entity.get_mask()
-        x_offset = self.get_location().x - other_entity.get_location().x
-        y_offset = self.get_location().y - other_entity.get_location().y
+        x_offset = other_entity.get_rect().left - self.get_rect().left
+        y_offset = other_entity.get_rect().top - self.get_rect().top 
         offeset = None
         if mask.overlap(other_mask,(x_offset,y_offset)):
             offeset = (self.get_rect().centerx - other_entity.get_rect().centerx,
