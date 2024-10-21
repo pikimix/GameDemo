@@ -130,7 +130,8 @@ class Entity:
     def serialize(self) -> dict:
         return {
             'uuid': str(self.uuid),
-            'location' : { 'x' : self._sprite.rect.left, 'y': self._sprite.rect.top},
+            'location' : { 'x' : self._sprite.rect.left, 'y': self._sprite.rect.top,
+                            'height': self._sprite.rect.height, 'width': self._sprite.rect.width},
             'velocity' : { 'x' : self._velocity.x, 'y': self._velocity.y},
             'sprite': self._sprite_name,
             'facing_left': self._facing_left,
