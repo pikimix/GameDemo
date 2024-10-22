@@ -148,17 +148,22 @@ class Entity:
                 self._sprite.rect.top = bounds.top
             elif self._sprite.rect.bottom > bounds.bottom:
                 self._sprite.rect.bottom = bounds.bottom
+
     def update_animation(self):
         self._sprite.update_animation()
 
     def net_update(self, remote_entity:dict) -> None:
-        logger.info(f'net_update: {remote_entity=}')
+        logger.debug(f'net_update: {remote_entity=}')
         left = remote_entity['location']['x']
         top = remote_entity['location']['y']
         self._sprite.rect.update(left, top, self._sprite.rect.width, self._sprite.rect.height)
         self._velocity.x = remote_entity['velocity']['x']
         self._velocity.y = remote_entity['velocity']['y']
         self._facing_left = remote_entity['facing_left']
+        if 'is_alive' in remote_entity.keys():
+            self.is_alive = remote_entity['is_alive']
+        else:
+            logger.error(f'net_update: Key not found "is_alive" in received update for {remote_entity=}')
         
     def serialize(self) -> dict:
         return {

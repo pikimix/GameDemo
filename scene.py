@@ -128,10 +128,11 @@ class Scene:
     def draw(self):
         self._screen.fill("forestgreen")
         for entity in self._entities:
-            if type(entity) == Enemy:
-                entity.draw(self._screen)
-            else:
-                entity.draw(self._screen, (255,255,0,255))
+            if entity.is_alive:
+                if type(entity) == Enemy:
+                    entity.draw(self._screen)
+                else:
+                    entity.draw(self._screen, (255,255,0,255))
         self.draw_scoreboard()
         if self._player.is_alive:
             self._player.draw(self._screen)

@@ -76,7 +76,8 @@ class WebSocketServer:
                 'velocity': {'x': 0, 'y': 0},
                 'sprite': None,
                 'facing_left': False,
-                'target': client_id
+                'target': client_id,
+                'is_alive': True
             } for _ in range(1)]
 
             # Broadcast the combined message to all connected clients
@@ -120,6 +121,7 @@ class WebSocketServer:
                         if r_entity['uuid'] == str(entity['uuid']):
                             if r_entity['type'] == 'enemy':
                                 self.entities[idx]['velocity'] = r_entity['velocity']
+                                self.entities[idx]['is_alive'] = r_entity['is_alive']
                             else:
                                 self.entities[idx] = r_entity
                             found = True
