@@ -53,7 +53,9 @@ class WebSocketServer:
                 'uuid': str(uuid.uuid4()),
                 'location': {
                     'x': choice([randint(0, 128), randint(1152, 1280)]), 
-                    'y': choice([randint(0, 128), randint(592, 720)])
+                    'y': choice([randint(0, 128), randint(592, 720)]),
+                    'width' : 20,
+                    'height' : 20
                 },
                 'velocity': {'x': 0, 'y': 0},
                 'sprite': None,
