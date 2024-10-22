@@ -148,6 +148,8 @@ class Entity:
                 self._sprite.rect.top = bounds.top
             elif self._sprite.rect.bottom > bounds.bottom:
                 self._sprite.rect.bottom = bounds.bottom
+    def update_animation(self):
+        self._sprite.update_animation()
 
     def net_update(self, remote_entity:dict) -> None:
         logger.info(f'net_update: {remote_entity=}')

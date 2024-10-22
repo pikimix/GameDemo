@@ -34,6 +34,10 @@ class AnimatedSprite(pg.sprite.Sprite):
         self._last_frame = 0
 
     def update(self, velocity: pg.math.Vector2):
+        self.update_animation()
+        self.rect.move_ip(velocity.x, velocity.y)
+        
+    def update_animation(self):
         current_time = pg.time.get_ticks()
         if self._frame:
             if current_time > self._last_frame + self._frame_update:
@@ -41,7 +45,6 @@ class AnimatedSprite(pg.sprite.Sprite):
                 if self._frame.x >= self.image.get_width():
                     self._frame.x = 0
                 self._last_frame = current_time
-        self.rect.move_ip(velocity.x, velocity.y)
 
     def get_mask(self, flip) -> pg.Mask:
         flipped = pg.transform.flip(self.image.copy(),True,False) if flip else self.image.copy()

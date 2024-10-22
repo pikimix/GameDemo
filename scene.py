@@ -39,6 +39,7 @@ class Scene:
 
     def update(self, dt: float) -> None:
         enemies = [e for e in self._entities if type(e) == Enemy]
+        players = [e.update_animation() for e in self._entities if type(e) == Entity]
         payload = {'uuid':str(self._uuid), 'name': self._name, 'entities':[]}
         if not self._player.is_alive:
             keys = pg.key.get_pressed()
