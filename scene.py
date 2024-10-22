@@ -52,27 +52,17 @@ class Scene:
             payload['score'] = self._score
         self._player.update(dt, self._screen.get_rect())
         enemy_update = []
-        for entity in self._entities:
-            if type(entity) == Enemy:
-                collides = entity.check_collides(self._player)
-                if collides:
-                    was_alive = self._player.is_alive
-                    self._player.damage(entity._atack)
-                    if not self._player.is_alive and was_alive:
-                        self._score = pg.time.get_ticks() - self._last_start
-                        payload['score'] = self._score
-                if entity._target == self._uuid:
-                    # entity.move_to(self._player.get_location())
-                    entity.move_to_avoiding(self._player.get_location(), enemies)
-                    # if not collides:
-                    #     for other in self._entities:
-                    #         if type(other) == Entity:
-                    #             other_collides = entity.check_collides(other)
-                    #             if other_collides:
-                    #                 entity.update_position(other_collides)
-                    #                 break
-                    # entity.update(dt)
-                    enemy_update.append(entity)
+        for enemy in enemies:
+            collides = enemy.check_collides(self._player)
+            if collides:
+                was_alive = self._player.is_alive
+                self._player.damage(enemy._atack)
+                if not self._player.is_alive and was_alive:
+                    self._score = pg.time.get_ticks() - self._last_start
+                    payload['score'] = self._score
+            if enemy._target == self._uuid:
+                enemy.move_to_avoiding(self._player.get_location(), enemies)
+                enemy_update.append(enemy)
         for enemy in enemy_update:
             payload['entities'].append(enemy.serialize())
 
