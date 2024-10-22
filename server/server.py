@@ -32,7 +32,7 @@ class WebSocketServer:
         #     }
         # ]
         self.last_message_time = asyncio.get_event_loop().time()  # Track last message time
-        self.update_interval = 1.0  # Update interval in seconds
+        self.update_interval = 0.01  # Update interval in seconds
         self.scores = {}
 
     async def handler(self, websocket, path):
@@ -50,7 +50,21 @@ class WebSocketServer:
             self.connected_clients[client_id] = websocket
             logger.info(f"Client connected: {client_id}")
             # add New enemy targeting the new player
-            self.entities.append({
+            # self.entities.append({
+            #     'type': 'enemy',
+            #     'uuid': str(uuid.uuid4()),
+            #     'location': {
+            #         'x': choice([randint(0, 128), randint(1152, 1280)]), 
+            #         'y': choice([randint(0, 128), randint(592, 720)]),
+            #         'width' : 20,
+            #         'height' : 20
+            #     },
+            #     'velocity': {'x': 0, 'y': 0},
+            #     'sprite': None,
+            #     'facing_left': False,
+            #     'target': client_id
+            # })
+            self.entities += [{
                 'type': 'enemy',
                 'uuid': str(uuid.uuid4()),
                 'location': {
@@ -63,7 +77,7 @@ class WebSocketServer:
                 'sprite': None,
                 'facing_left': False,
                 'target': client_id
-            })
+            } for _ in range(1)]
 
             # Broadcast the combined message to all connected clients
             await self.broadcast(None, {"entities": self.entities})
@@ -104,7 +118,10 @@ class WebSocketServer:
                     found = False
                     for idx, entity in enumerate(self.entities):
                         if r_entity['uuid'] == str(entity['uuid']):
-                            self.entities[idx] = r_entity
+                            if r_entity['type'] == 'enemy':
+                                self.entities[idx]['velocity'] = r_entity['velocity']
+                            else:
+                                self.entities[idx] = r_entity
                             found = True
                     if not found:
                         self.entities.append(r_entity)
@@ -113,15 +130,16 @@ class WebSocketServer:
                     "entities": self.entities
                 }
                 # Broadcast the combined message to all connected clients
-                await self.broadcast(client_id, combined_payload)
+                # await self.broadcast(client_id, combined_payload)
+                await self.broadcast(None, combined_payload)
             if 'score' in data.keys():
                 if data['uuid'] in self.scores.keys():
                     if data['score'] > self.scores[data['uuid']]['score']:
                         self.scores[data['uuid']] = {'name': data['name'], 'score': data['score']}
-                        logger.info(f'Set score for {data["uuid"]} to {self.scores[data["uuid"]]}')
+                        logger.debug(f'Set score for {data["uuid"]} to {self.scores[data["uuid"]]}')
                 else:
                     self.scores[data['uuid']] = {'name': data['name'], 'score': data['score']}
-                    logger.info(f'Set score for {data["uuid"]} to {self.scores[data["uuid"]]}')
+                    logger.debug(f'Set score for {data["uuid"]} to {self.scores[data["uuid"]]}')
                 await self.broadcast(None, {'scores':self.scores})
 
     async def broadcast(self, sender_id, message):

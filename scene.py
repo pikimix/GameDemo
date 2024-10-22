@@ -38,6 +38,7 @@ class Scene:
         self._name = name
 
     def update(self, dt: float) -> None:
+        enemies = [e for e in self._entities if type(e) == Enemy]
         payload = {'uuid':str(self._uuid), 'name': self._name, 'entities':[]}
         if not self._player.is_alive:
             keys = pg.key.get_pressed()
@@ -61,15 +62,16 @@ class Scene:
                         self._score = pg.time.get_ticks() - self._last_start
                         payload['score'] = self._score
                 if entity._target == self._uuid:
-                    entity.move_to(self._player.get_location())
-                    if not collides:
-                        for other in self._entities:
-                            if type(other) == Entity:
-                                other_collides = entity.check_collides(other)
-                                if other_collides:
-                                    entity.update_position(other_collides)
-                                    break
-                    entity.update(dt)
+                    # entity.move_to(self._player.get_location())
+                    entity.move_to_avoiding(self._player.get_location(), enemies)
+                    # if not collides:
+                    #     for other in self._entities:
+                    #         if type(other) == Entity:
+                    #             other_collides = entity.check_collides(other)
+                    #             if other_collides:
+                    #                 entity.update_position(other_collides)
+                    #                 break
+                    # entity.update(dt)
                     enemy_update.append(entity)
         for enemy in enemy_update:
             payload['entities'].append(enemy.serialize())
@@ -99,9 +101,9 @@ class Scene:
                     found = False
                     for entity in self._entities:
                         if remote_uuid == entity.uuid:
-                            if remote_entity['type'] == 'player' or \
-                                (remote_entity['type'] == 'enemy' and remote_entity['target'] != str(self._uuid)):
-                                entity.net_update(remote_entity)
+                            # if remote_entity['type'] == 'player' or \
+                            #     (remote_entity['type'] == 'enemy' and remote_entity['target'] != str(self._uuid)):
+                            entity.net_update(remote_entity)
                             found = True
                     if not found:
                         if remote_entity['type'] == 'player':

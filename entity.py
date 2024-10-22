@@ -75,6 +75,36 @@ class Entity:
         else:
             self._velocity.y = 0
 
+    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: list[Entity]) -> None:
+        # Determine target velocity towards the player
+        target_velocity = pg.Vector2(0, 0)
+
+        if destination.x > self.get_location().x:
+            target_velocity.x = 200
+        elif destination.x < self.get_location().x:
+            target_velocity.x = -200
+
+        if destination.y > self.get_location().y:
+            target_velocity.y = 200
+        elif destination.y < self.get_location().y:
+            target_velocity.y = -200
+
+        # Check for collision with other avoid_list
+        for entity in avoid_list:
+            if entity != self:  # Avoid checking against itself
+                distance = self.get_location().distance_to(entity.get_location())
+                collision_radius = entity.get_rect().width/2
+
+                if distance < collision_radius:
+                    # Calculate a direction vector to avoid the other entity
+                    direction = self.get_location() - entity.get_location()
+                    direction.normalize_ip()  # Normalize to get a unit vector
+
+                    # Move away from the other entity
+                    target_velocity += direction * 100  # Adjust strength as needed
+
+        # Set the final velocity, ensuring it’s capped or constrained as needed
+        self._velocity = target_velocity
 
     def update_position(self, offset: tuple):
         self._sprite.rect.move(offset)
@@ -120,6 +150,7 @@ class Entity:
                 self._sprite.rect.bottom = bounds.bottom
 
     def net_update(self, remote_entity:dict) -> None:
+        logger.info(f'net_update: {remote_entity=}')
         left = remote_entity['location']['x']
         top = remote_entity['location']['y']
         self._sprite.rect.update(left, top, self._sprite.rect.width, self._sprite.rect.height)
@@ -163,8 +194,8 @@ class Enemy(Entity):
         new_enemy._velocity = pg.Vector2(enemy['velocity']['x'], enemy['velocity']['y'])
         return new_enemy
     
-    def update(self, dt: float) -> None:
-        return super().update(dt)
+    # def update(self, dt: float) -> None:
+    #     return super().update(dt)
     
     def serialize(self) -> dict:
         ret_val = super().serialize()
