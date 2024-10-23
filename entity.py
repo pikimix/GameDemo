@@ -9,17 +9,17 @@ logging.basicConfig(level=logging.INFO)
 class Entity:
     def __init__(self, location: pg.Vector2, sprite: dict=None, uuid:uuid.UUID=None, name:str=None) -> None:
         self.uuid = uuid
-        self._location = location
         self._sprite = None
         self._sprite_name = None
         if sprite:
             for k,v in sprite.items():
                 self._sprite_name = k
-                self._sprite = AnimatedSprite(v)
+                self._sprite = AnimatedSprite(v,location=location)
         else:
-            self._sprite = AnimatedSprite(None)
+            self._sprite = AnimatedSprite(None,location=location)
         self._facing_left = False
         self._velocity = pg.Vector2(0,0)
+        self._max_velocity = 250
         self._hp = 100
         self._atack = 10
         self.is_alive = True
@@ -42,15 +42,14 @@ class Entity:
 
     def respawn(self, location: pg.Vector2, sprite: dict=None, uuid=None) -> None:
         self.uuid = uuid
-        self._location = location
         self._sprite = None
         self._sprite_name = None
         if sprite:
             for k,v in sprite.items():
                 self._sprite_name = k
-                self._sprite = AnimatedSprite(v)
+                self._sprite = AnimatedSprite(v, location)
         else:
-            self._sprite = AnimatedSprite(None)
+            self._sprite = AnimatedSprite(None, location)
         self._facing_left = False
         self._velocity = pg.Vector2(0,0)
         self._hp = 100
@@ -63,41 +62,54 @@ class Entity:
             self.is_alive = False
 
     def move_to(self, destination: pg.Vector2) -> None:
-        if destination.x > self._location.x:
-            self._velocity.x = 200
-        elif destination.x < self._location.x:
-            self._velocity.x = -200
-        else:
-            self._velocity.x = 0
+        target_velocity = destination - self.get_location()
+        if target_velocity.length() != 0:
+            target_velocity = target_velocity.normalize() * self._max_velocity
+        self._velocity = target_velocity
 
-        if destination.y > self._location.y:
-            self._velocity.y = 200
-        elif destination.y < self._location.y:
-            self._velocity.y = -200
-        else:
-            self._velocity.y = 0
+    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: list[Entity]) -> None:
+        # Determine target velocity towards the player
+        target_velocity = pg.Vector2(0, 0)
+        target_velocity = (destination - self.get_location()) * self._max_velocity
 
+        # Check for collision with other avoid_list
+        for entity in avoid_list:
+            if entity != self:  # Avoid checking against itself
+                distance = self.get_location().distance_to(entity.get_location())
+                collision_radius = entity.get_rect().width/2
+
+                if distance < collision_radius:
+                    # Calculate a direction vector to avoid the other entity
+                    direction = self.get_location() - entity.get_location()
+                    direction.normalize_ip()  # Normalize to get a unit vector
+
+                    # Move away from the other entity
+                    target_velocity += direction * 100  # Adjust strength as needed
+
+        # Set the final velocity, ensuring it’s capped or constrained as needed
+        if target_velocity.length() != 0:
+            target_velocity = target_velocity.normalize() * self._max_velocity
+        self._velocity = target_velocity
 
     def update_position(self, offset: tuple):
-        self._location.x += offset[0]
-        self._location.y += offset[1]
+        self._sprite.rect.move(offset)
 
 
     def check_collides(self, other_entity:Entity) -> tuple|None:
         mask = self.get_mask()
         other_mask = other_entity.get_mask()
-        x_offset = self.get_location().x - other_entity.get_location().x
-        y_offset = self.get_location().y - other_entity.get_location().y
+        x_offset = other_entity.get_rect().left - self.get_rect().left
+        y_offset = other_entity.get_rect().top - self.get_rect().top 
         offeset = None
         if mask.overlap(other_mask,(x_offset,y_offset)):
             offeset = (self.get_rect().centerx - other_entity.get_rect().centerx,
                     self.get_rect().centery - other_entity.get_rect().centery
             )
-        logger.info(f'{offeset=}')
+        # logger.info(f'{offeset=}')
         return offeset
 
     def get_rect(self) -> pg.Rect:
-        return pg.Rect(self._location.x, self._location.y, self._sprite.rect.width, self._sprite.rect.height)
+        return self._sprite.rect
 
     def get_mask(self) -> pg.Mask:
         if self._sprite:
@@ -108,36 +120,41 @@ class Entity:
             return pg.mask.from_surface(surface)
 
     def get_location(self) -> pg.Vector2:
-        if self._sprite:
-            x = self._location.x + (self._sprite.rect.width / 2)
-            y = self._location.y + (self._sprite.rect.height / 2)
-            return pg.Vector2(x, y)
-        else:
-            return self._location
+        return pg.Vector2(self._sprite.rect.centerx, self._sprite.rect.centery)
 
     def update(self, dt: float, bounds:pg.Rect=None) -> None:
-        self._location += self._velocity * dt
+        self._sprite.update(self._velocity * dt)
         if bounds:
-            if self._location.x < bounds.left:
-                self._location.x = bounds.left
-            elif self._location.x + self._sprite.rect.width > bounds.right:
-                self._location.x = bounds.right - self._sprite.rect.width
-            if self._location.y < bounds.top:
-                self._location.y = bounds.top
-            elif self._location.y + self._sprite.rect.height > bounds.bottom:
-                self._location.y = bounds.bottom - self._sprite.rect.height
+            if self._sprite.rect.left < bounds.left:
+                self._sprite.rect.left = bounds.left
+            elif self._sprite.rect.right > bounds.right:
+                self._sprite.rect.right = bounds.right
+            if self._sprite.rect.top < bounds.top:
+                self._sprite.rect.top = bounds.top
+            elif self._sprite.rect.bottom > bounds.bottom:
+                self._sprite.rect.bottom = bounds.bottom
+
+    def update_animation(self):
+        self._sprite.update_animation()
 
     def net_update(self, remote_entity:dict) -> None:
-        self._location.x = remote_entity['location']['x']
-        self._location.y = remote_entity['location']['y']
+        logger.debug(f'net_update: {remote_entity=}')
+        left = remote_entity['location']['x']
+        top = remote_entity['location']['y']
+        self._sprite.rect.update(left, top, self._sprite.rect.width, self._sprite.rect.height)
         self._velocity.x = remote_entity['velocity']['x']
         self._velocity.y = remote_entity['velocity']['y']
         self._facing_left = remote_entity['facing_left']
+        if 'is_alive' in remote_entity.keys():
+            self.is_alive = remote_entity['is_alive']
+        else:
+            logger.error(f'net_update: Key not found "is_alive" in received update for {remote_entity=}')
         
     def serialize(self) -> dict:
         return {
             'uuid': str(self.uuid),
-            'location' : { 'x' : self._location.x, 'y': self._location.y},
+            'location' : { 'x' : self._sprite.rect.left, 'y': self._sprite.rect.top,
+                            'height': self._sprite.rect.height, 'width': self._sprite.rect.width},
             'velocity' : { 'x' : self._velocity.x, 'y': self._velocity.y},
             'sprite': self._sprite_name,
             'facing_left': self._facing_left,
@@ -145,16 +162,13 @@ class Entity:
             'is_alive' : self.is_alive
         }
     def draw(self, screen, color=(255,0,0,255)) -> None:
-        if self._sprite:
-            self._sprite.draw(screen, self._location, flip=self._facing_left, color=color)
-            if self._name:
-                name = self._font.render(self._name, True, (0, 0, 0))
-                name_pos = self.get_location()
-                name_pos.x -= name.get_width()/2
-                name_pos.y += self._sprite.rect.height/2
-                screen.blit(name, name_pos)
-        else:
-            pg.draw.circle(screen, (255,0,0,255), self._location, radius=10, width=0)
+        self._sprite.draw(screen, flip=self._facing_left, color=color)
+        if self._name:
+            name = self._font.render(self._name, True, (0, 0, 0))
+            name_pos = self.get_location()
+            name_pos.x -= name.get_width()/2
+            name_pos.y += self._sprite.rect.height/2
+            screen.blit(name, name_pos)
 
 class Enemy(Entity):
     def __init__(self, location: pg.Vector2, sprite: dict = None, uuid=None, target_uuid=None, name:str=None) -> None:
@@ -172,8 +186,8 @@ class Enemy(Entity):
         new_enemy._velocity = pg.Vector2(enemy['velocity']['x'], enemy['velocity']['y'])
         return new_enemy
     
-    def update(self, dt: float) -> None:
-        return super().update(dt)
+    # def update(self, dt: float) -> None:
+    #     return super().update(dt)
     
     def serialize(self) -> dict:
         ret_val = super().serialize()
@@ -197,27 +211,36 @@ class Enemy(Entity):
 
 class Player(Entity):
     def __init__(self, location, sprite, uuid, name:str=None) -> None:
-        self._color = (0,0,128,255)
         super().__init__(location, sprite, uuid, name)
+        self._color = (0,0,128,255)
+        self._max_velocity = 350
 
     def update(self, dt, bounds:pg.Rect) -> None:
         keys = pg.key.get_pressed()
+        target_velocity = pg.Vector2(0, 0) 
         if keys[pg.K_w]:
-            self._velocity.y = -300
-        elif keys[pg.K_s]:
-            self._velocity.y = 300
-        else:
-            self._velocity.y = 0
+            target_velocity.y += -1
+        if keys[pg.K_s]:
+            target_velocity.y += 1
+        
         if keys[pg.K_a]:
             self._facing_left = True
-            self._velocity.x = -300
-        elif keys[pg.K_d]:
+            target_velocity.x += -1
+        if keys[pg.K_d]:
             self._facing_left = False
-            self._velocity.x = 300
-        else:
-            self._velocity.x = 0
+            target_velocity.x += 1
 
-        self._sprite.update()
+        mouse = pg.mouse.get_pressed(num_buttons=3)
+        if mouse[0] == True:
+            mouse_pos = pg.mouse.get_pos()
+            mouse_pos = pg.Vector2(mouse_pos[0], mouse_pos[1])
+            self.move_to(mouse_pos)
+        else:
+            if target_velocity.length() != 0:
+                self._velocity = target_velocity.normalize() * self._max_velocity
+            else:
+                self._velocity = target_velocity
+        logger.debug(f'player:update: {self._velocity.length()}')
         super().update(dt, bounds)
     
     def draw(self, screen) -> None:

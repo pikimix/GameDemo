@@ -24,7 +24,8 @@ class WebSocketClient:
         except TypeError as e:
             logger.error(f'on_message:Type error: {e}')
         except Exception as e:
-            logger.error(f'on_message:An unexpected error occurred: {e}')
+            logger.error(f'on_message:An unexpected error occurred:1: {e=}')
+            logger.error(f'on_message:An unexpected error occurred:2: {message=}')
 
 
     def on_error(self, ws, error):

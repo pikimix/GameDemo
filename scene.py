@@ -38,6 +38,8 @@ class Scene:
         self._name = name
 
     def update(self, dt: float) -> None:
+        enemies = [e for e in self._entities if type(e) == Enemy]
+        players = [e.update_animation() for e in self._entities if type(e) == Entity]
         payload = {'uuid':str(self._uuid), 'name': self._name, 'entities':[]}
         if not self._player.is_alive:
             keys = pg.key.get_pressed()
@@ -51,26 +53,17 @@ class Scene:
             payload['score'] = self._score
         self._player.update(dt, self._screen.get_rect())
         enemy_update = []
-        for entity in self._entities:
-            if type(entity) == Enemy:
-                collides = entity.check_collides(self._player)
-                if collides:
-                    was_alive = self._player.is_alive
-                    self._player.damage(entity._atack)
-                    if not self._player.is_alive and was_alive:
-                        self._score = pg.time.get_ticks() - self._last_start
-                        payload['score'] = self._score
-                if entity._target == self._uuid:
-                    entity.move_to(self._player.get_location())
-                    if not collides:
-                        for other in self._entities:
-                            if type(other) == Entity:
-                                other_collides = entity.check_collides(other)
-                                if other_collides:
-                                    entity.update_position(other_collides)
-                                    break
-                    entity.update(dt)
-                    enemy_update.append(entity)
+        for enemy in enemies:
+            collides = enemy.check_collides(self._player)
+            if collides:
+                was_alive = self._player.is_alive
+                self._player.damage(enemy._atack)
+                if not self._player.is_alive and was_alive:
+                    self._score = pg.time.get_ticks() - self._last_start
+                    payload['score'] = self._score
+            if enemy._target == self._uuid:
+                enemy.move_to_avoiding(self._player.get_location(), enemies)
+                enemy_update.append(enemy)
         for enemy in enemy_update:
             payload['entities'].append(enemy.serialize())
 
@@ -99,9 +92,9 @@ class Scene:
                     found = False
                     for entity in self._entities:
                         if remote_uuid == entity.uuid:
-                            if remote_entity['type'] == 'player' or \
-                                (remote_entity['type'] == 'enemy' and remote_entity['target'] != str(self._uuid)):
-                                entity.net_update(remote_entity)
+                            # if remote_entity['type'] == 'player' or \
+                            #     (remote_entity['type'] == 'enemy' and remote_entity['target'] != str(self._uuid)):
+                            entity.net_update(remote_entity)
                             found = True
                     if not found:
                         if remote_entity['type'] == 'player':
@@ -115,8 +108,6 @@ class Scene:
             if isinstance(data['remove'], list):
                 for r_uuid in data['remove']:
                     remove_idx = next((idx for idx, entity in enumerate(self._entities) if entity.uuid == uuid.UUID(r_uuid)), None)
-                    for entity in self._entities:
-                        print(f'{uuid.UUID(r_uuid)=} {entity.uuid=} : {(entity.uuid == uuid.UUID(r_uuid))=}')
                     if isinstance(remove_idx, int):
                         logger.info(f'handle_message:Found {r_uuid}')
                         self._entities.pop(remove_idx)
@@ -135,10 +126,11 @@ class Scene:
     def draw(self):
         self._screen.fill("forestgreen")
         for entity in self._entities:
-            if type(entity) == Enemy:
-                entity.draw(self._screen)
-            else:
-                entity.draw(self._screen, (255,255,0,255))
+            if entity.is_alive:
+                if type(entity) == Enemy:
+                    entity.draw(self._screen)
+                else:
+                    entity.draw(self._screen, (255,255,0,255))
         self.draw_scoreboard()
         if self._player.is_alive:
             self._player.draw(self._screen)
