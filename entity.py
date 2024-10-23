@@ -61,33 +61,12 @@ class Entity:
             self.is_alive = False
 
     def move_to(self, destination: pg.Vector2) -> None:
-        if destination.x > self.get_location().x:
-            self._velocity.x = 200
-        elif destination.x < self.get_location().x:
-            self._velocity.x = -200
-        else:
-            self._velocity.x = 0
-
-        if destination.y > self.get_location().y:
-            self._velocity.y = 200
-        elif destination.y < self.get_location().y:
-            self._velocity.y = -200
-        else:
-            self._velocity.y = 0
+        self._velocity = (destination - self.get_location()) * 250
 
     def move_to_avoiding(self, destination: pg.Vector2, avoid_list: list[Entity]) -> None:
         # Determine target velocity towards the player
         target_velocity = pg.Vector2(0, 0)
-
-        if destination.x > self.get_location().x:
-            target_velocity.x = 200
-        elif destination.x < self.get_location().x:
-            target_velocity.x = -200
-
-        if destination.y > self.get_location().y:
-            target_velocity.y = 200
-        elif destination.y < self.get_location().y:
-            target_velocity.y = -200
+        target_velocity = (destination - self.get_location()) * 200
 
         # Check for collision with other avoid_list
         for entity in avoid_list:
@@ -104,6 +83,8 @@ class Entity:
                     target_velocity += direction * 100  # Adjust strength as needed
 
         # Set the final velocity, ensuring it’s capped or constrained as needed
+        if target_velocity.length() != 0:
+            target_velocity = target_velocity.normalize() * 250
         self._velocity = target_velocity
 
     def update_position(self, offset: tuple):
