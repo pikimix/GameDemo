@@ -1,6 +1,7 @@
 from __future__ import annotations # To make type hinting work when using classes within this file
 from sprite_sheet import AnimatedSprite, SpriteSet
 import pygame as pg
+from math import radians
 import logging
 import uuid
 logger = logging.getLogger(__name__)
@@ -21,7 +22,8 @@ class Entity:
         self._velocity = pg.Vector2(0,0)
         self._max_velocity = 250
         self._hp = 100
-        self._atack = 10
+        self._max_hp = 100
+        self._atack = 2.5
         self.is_alive = True
         self._name = name
         self._font = pg.font.SysFont('Futura', 30)
@@ -242,6 +244,20 @@ class Player(Entity):
                 self._velocity = target_velocity
         logger.debug(f'player:update: {self._velocity.length()}')
         super().update(dt, bounds)
-    
+
+    def draw_healthbar(self, screen: pg.surface):
+        rect = pg.Rect(self.get_rect().left, self.get_rect().top -15,
+                        self.get_rect().width, 5)
+        bar = pg.Rect(self.get_rect().left, self.get_rect().top -15,
+                        ((self._hp/self._max_hp) *self.get_rect().width), 5)
+        pg.draw.rect(screen, (255,0,0,255),bar)
+        pg.draw.rect(screen, (0,0,0,255),rect,1,1)
+        pass
     def draw(self, screen) -> None:
+        self.draw_healthbar(screen)
+        # name = self._font.render(self._name, True, (0, 0, 0))
+        # name_pos = self.get_location()
+        # name_pos.x -= name.get_width()/2
+        # name_pos.y += self._sprite.rect.height/2
+        # screen.blit(name, name_pos)
         super().draw(screen, color=self._color)
