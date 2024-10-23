@@ -51,6 +51,7 @@ class Entity:
             self._sprite = AnimatedSprite(None, location)
         self._facing_left = False
         self._velocity = pg.Vector2(0,0)
+        self._max_velocity = 250
         self._hp = 100
         self._atack = 10
         self.is_alive = True
@@ -61,12 +62,12 @@ class Entity:
             self.is_alive = False
 
     def move_to(self, destination: pg.Vector2) -> None:
-        self._velocity = (destination - self.get_location()) * 250
+        self._velocity = (destination - self.get_location()) * self._max_velocity
 
     def move_to_avoiding(self, destination: pg.Vector2, avoid_list: list[Entity]) -> None:
         # Determine target velocity towards the player
         target_velocity = pg.Vector2(0, 0)
-        target_velocity = (destination - self.get_location()) * 200
+        target_velocity = (destination - self.get_location()) * self._max_velocity
 
         # Check for collision with other avoid_list
         for entity in avoid_list:
@@ -84,7 +85,7 @@ class Entity:
 
         # Set the final velocity, ensuring it’s capped or constrained as needed
         if target_velocity.length() != 0:
-            target_velocity = target_velocity.normalize() * 250
+            target_velocity = target_velocity.normalize() * self._max_velocity
         self._velocity = target_velocity
 
     def update_position(self, offset: tuple):
