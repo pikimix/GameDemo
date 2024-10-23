@@ -77,6 +77,7 @@ class WebSocketServer:
             await asyncio.sleep(0.1)
 
             await self.broadcast(None, {"remove": removals})
+
     async def handle_message(self, client_id, message):
         logger.debug(f"Received message from {client_id}: {message}")
         # Update the last message time
@@ -84,22 +85,38 @@ class WebSocketServer:
         data = json.loads(message)
         if isinstance(data, dict):
             if 'entities' in data.keys():
+                combined_payload = {}
                 for r_entity in data['entities']:
                     found = False
+                    remove_enemy = None
+                    spawn_enemy = None
                     for idx, entity in enumerate(self.entities):
                         if r_entity['uuid'] == str(entity['uuid']):
                             if r_entity['type'] == 'enemy':
                                 self.entities[idx]['velocity'] = r_entity['velocity']
                                 self.entities[idx]['is_alive'] = r_entity['is_alive']
                             else:
+                                if r_entity['type'] == 'player':
+                                    if not r_entity['is_alive'] and self.entities[idx]['is_alive']:
+                                        remove_enemy = r_entity['uuid']
+                                    elif r_entity['is_alive'] and not self.entities[idx]['is_alive']:
+                                        logger.info('handle_message: Should be trying to spawn enemies')
+                                        spawn_enemy = r_entity['uuid']
                                 self.entities[idx] = r_entity
                             found = True
                     if not found:
+                        logger.error(f'handle_message: pretty sure there should never be a missing entity, but this one was {r_entity}')
                         self.entities.append(r_entity)
-                # Create combined payload
-                combined_payload = {
-                    "entities": self.entities
-                }
+                    logger.debug(f'handle_message: {remove_enemy=} {spawn_enemy=}')
+                    if remove_enemy:
+                        removals = self.remove_enemys_targeting(remove_enemy)
+                        combined_payload['remove'] = removals
+                    if spawn_enemy:
+                        self.spawn_enemies(spawn_enemy, 1)
+
+                combined_payload["entities"] = self.entities
+                
+                logger.debug(f'handle_message: {combined_payload=}')
                 # Broadcast the combined message to all connected clients
                 # await self.broadcast(client_id, combined_payload)
                 await self.broadcast(None, combined_payload)
@@ -124,6 +141,7 @@ class WebSocketServer:
                     logger.error(f"Error sending message to {client_id}: {e}")
 
     def spawn_enemies(self, target: str, number_to_spawn: int):
+        logger.debug(f'spawn_enemies: {target=} {number_to_spawn=}')
         self.entities += [{
                 'type': 'enemy',
                 'uuid': str(uuid.uuid4()),
@@ -141,7 +159,7 @@ class WebSocketServer:
             } for _ in range(number_to_spawn)]
 
     def remove_entity(self, entity_id):
-        logger.info('remove_entity: Received removal for {entity_id}')
+        logger.info(f'remove_entity: Received removal for {entity_id}')
         if entity_id in self.connected_clients:
             logger.info(f'remove_entity: Received disconnect from {entity_id}')
             logger.debug(f'remove_entity: Removing from connected clients')
@@ -153,14 +171,20 @@ class WebSocketServer:
         if entity_idx:
             logger.debug('remove_entity: Removing from current entities list.')
             self.entities.pop(entity_idx)
+        removals = self.remove_enemys_targeting(entity_id)
+        # append entity we have removed to list of enemys removed
+        removals.append(entity_id)
+        return removals
+
+    def remove_enemys_targeting(self, entity_id:str):
+        logger.debug(f'remove_enemys_targeting: Removing enemies targeting {entity_id}')
         enemy_targets = [idx for idx, entity in enumerate(self.entities) if entity['type'] == 'enemy' and entity['target'] == entity_id]
-        logger.debug('remove_entity: Removing enemies targeting client')
-        removals = [entity_id]
+        removals = []
         for idx in sorted(enemy_targets, reverse=True):
             # remove from list and broadcast removal to remaining clients
             removals.append(self.entities.pop(idx)['uuid'])
         return removals
-
+    
     def run(self, update_function=None, host='localhost', port=8765):
         start_server = websockets.serve(self.handler, host, port)
         asyncio.get_event_loop().run_until_complete(start_server)
