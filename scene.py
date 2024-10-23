@@ -108,8 +108,6 @@ class Scene:
             if isinstance(data['remove'], list):
                 for r_uuid in data['remove']:
                     remove_idx = next((idx for idx, entity in enumerate(self._entities) if entity.uuid == uuid.UUID(r_uuid)), None)
-                    for entity in self._entities:
-                        print(f'{uuid.UUID(r_uuid)=} {entity.uuid=} : {(entity.uuid == uuid.UUID(r_uuid))=}')
                     if isinstance(remove_idx, int):
                         logger.info(f'handle_message:Found {r_uuid}')
                         self._entities.pop(remove_idx)
