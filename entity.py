@@ -238,10 +238,9 @@ class Player(Entity):
         else:
             if target_velocity.length() != 0:
                 self._velocity = target_velocity.normalize() * self._max_velocity
-                logger.info(f'{self._velocity.length()=}')
             else:
                 self._velocity = target_velocity
-        logger.info(f'player:update: {self._velocity.length()}')
+        logger.debug(f'player:update: {self._velocity.length()}')
         super().update(dt, bounds)
     
     def draw(self, screen) -> None:
