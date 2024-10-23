@@ -213,7 +213,7 @@ class Player(Entity):
     def __init__(self, location, sprite, uuid, name:str=None) -> None:
         super().__init__(location, sprite, uuid, name)
         self._color = (0,0,128,255)
-        self._max_velocity = 300
+        self._max_velocity = 350
 
     def update(self, dt, bounds:pg.Rect) -> None:
         keys = pg.key.get_pressed()
