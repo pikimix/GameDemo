@@ -3,11 +3,17 @@ from random import randint, choice
 import asyncio
 import logging
 import pygame as pg
+import argparse
 
 # Configure logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-l", "--listen", help="Listen IP", required=False, default='localhost')
+parser.add_argument("-p", "--port", help="Server port to connect to, or listen on as server", required=False, default=8765)
+parser.add_argument("-d", "--debug", help="Run with debug flags", action='store_true')
+args = parser.parse_args()
 
 async def update_entities(server :WebSocketServer):
     last_update_time = 0
@@ -80,4 +86,4 @@ def update(server, dt:float):
 
 if __name__ == '__main__':
     server = WebSocketServer()
-    server.run(update_entities)
+    server.run(update_entities, host=args.listen, port=args.port)
