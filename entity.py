@@ -19,6 +19,7 @@ class Entity:
             self._sprite = AnimatedSprite(None,location=location)
         self._facing_left = False
         self._velocity = pg.Vector2(0,0)
+        self._max_velocity = 250
         self._hp = 100
         self._atack = 10
         self.is_alive = True
@@ -51,7 +52,6 @@ class Entity:
             self._sprite = AnimatedSprite(None, location)
         self._facing_left = False
         self._velocity = pg.Vector2(0,0)
-        self._max_velocity = 250
         self._hp = 100
         self._atack = 10
         self.is_alive = True
@@ -62,7 +62,10 @@ class Entity:
             self.is_alive = False
 
     def move_to(self, destination: pg.Vector2) -> None:
-        self._velocity = (destination - self.get_location()) * self._max_velocity
+        target_velocity = destination - self.get_location()
+        if target_velocity.length() != 0:
+            target_velocity = target_velocity.normalize() * self._max_velocity
+        self._velocity = target_velocity
 
     def move_to_avoiding(self, destination: pg.Vector2, avoid_list: list[Entity]) -> None:
         # Determine target velocity towards the player
@@ -208,27 +211,37 @@ class Enemy(Entity):
 
 class Player(Entity):
     def __init__(self, location, sprite, uuid, name:str=None) -> None:
-        self._color = (0,0,128,255)
         super().__init__(location, sprite, uuid, name)
+        self._color = (0,0,128,255)
+        self._max_velocity = 300
 
     def update(self, dt, bounds:pg.Rect) -> None:
         keys = pg.key.get_pressed()
+        target_velocity = pg.Vector2(0, 0) 
         if keys[pg.K_w]:
-            self._velocity.y = -300
-        elif keys[pg.K_s]:
-            self._velocity.y = 300
-        else:
-            self._velocity.y = 0
+            target_velocity.y += -1
+        if keys[pg.K_s]:
+            target_velocity.y += 1
+        
         if keys[pg.K_a]:
             self._facing_left = True
-            self._velocity.x = -300
-        elif keys[pg.K_d]:
+            target_velocity.x += -1
+        if keys[pg.K_d]:
             self._facing_left = False
-            self._velocity.x = 300
-        else:
-            self._velocity.x = 0
+            target_velocity.x += 1
 
-        # self._sprite.update(self._velocity)
+        mouse = pg.mouse.get_pressed(num_buttons=3)
+        if mouse[0] == True:
+            mouse_pos = pg.mouse.get_pos()
+            mouse_pos = pg.Vector2(mouse_pos[0], mouse_pos[1])
+            self.move_to(mouse_pos)
+        else:
+            if target_velocity.length() != 0:
+                self._velocity = target_velocity.normalize() * self._max_velocity
+                logger.info(f'{self._velocity.length()=}')
+            else:
+                self._velocity = target_velocity
+        logger.info(f'player:update: {self._velocity.length()}')
         super().update(dt, bounds)
     
     def draw(self, screen) -> None:
