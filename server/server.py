@@ -121,17 +121,18 @@ class WebSocketServer:
                 # await self.broadcast(client_id, combined_payload)
                 await self.broadcast(None, combined_payload)
             if 'score' in data.keys():
-
                 if data['uuid'] in self.scores.keys():
+                    logger.info(self.scores[data['uuid']])
+                    for breakpoint in [1000, 2500, 5000, 10000]:
+                        if self.scores[data['uuid']]['current_score'] < breakpoint and breakpoint < data['score']:
+                            logger.info(f'handle_message: Score crossed breakpoint for {data["name"]}')
+                            self.spawn_enemies(data['uuid'],1)
+                    self.scores[data['uuid']]['current_score'] = data['score']
                     if data['score'] > self.scores[data['uuid']]['score']:
-                        for breakpoint in [10000, 15000, 20000, 25000]:
-                            if self.scores[data['uuid']]['score'] < breakpoint and breakpoint < data['score']:
-                                logger.info(f'handle_message: Score crossed breakpoint for {data["name"]}')
-                                self.spawn_enemies(data['uuid'],1)
-                        self.scores[data['uuid']] = {'name': data['name'], 'score': data['score']}
+                        self.scores[data['uuid']] = {'name': data['name'], 'score': data['score'], 'current_score': data['score']}
                         logger.debug(f'Set score for {data["uuid"]} to {self.scores[data["uuid"]]}')
                 else:
-                    self.scores[data['uuid']] = {'name': data['name'], 'score': data['score']}
+                    self.scores[data['uuid']] = {'name': data['name'], 'score': data['score'], 'current_score': data['score']}
                     logger.debug(f'Set score for {data["uuid"]} to {self.scores[data["uuid"]]}')
                 await self.broadcast(None, {'scores':self.scores})
 
