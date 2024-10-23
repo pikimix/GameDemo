@@ -123,10 +123,10 @@ class WebSocketServer:
             if 'score' in data.keys():
                 if data['uuid'] in self.scores.keys():
                     logger.info(self.scores[data['uuid']])
-                    for breakpoint in [1000, 2500, 5000, 10000]:
-                        if self.scores[data['uuid']]['current_score'] < breakpoint and breakpoint < data['score']:
-                            logger.info(f'handle_message: Score crossed breakpoint for {data["name"]}')
-                            self.spawn_enemies(data['uuid'],1)
+                    # for breakpoint in [1000, 2500, 5000, 10000]:
+                    if (self.scores[data['uuid']]['current_score'] // 2500) < (data['score'] // 2500):
+                        logger.info(f'handle_message: Score crossed breakpoint for {data["name"]}')
+                        self.spawn_enemies(data['uuid'],1)
                     self.scores[data['uuid']]['current_score'] = data['score']
                     if data['score'] > self.scores[data['uuid']]['score']:
                         self.scores[data['uuid']] = {'name': data['name'], 'score': data['score'], 'current_score': data['score']}
