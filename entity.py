@@ -83,7 +83,8 @@ class Entity:
                 if distance < collision_radius:
                     # Calculate a direction vector to avoid the other entity
                     direction = self.get_location() - entity.get_location()
-                    direction.normalize_ip()  # Normalize to get a unit vector
+                    if direction.length() != 0:
+                        direction.normalize_ip()  # Normalize to get a unit vector
 
                     # Move away from the other entity
                     target_velocity += direction * 100  # Adjust strength as needed
