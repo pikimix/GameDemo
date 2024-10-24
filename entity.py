@@ -42,8 +42,7 @@ class Entity:
         new_entity._velocity = pg.Vector2(entity['velocity']['x'], entity['velocity']['y'])
         return new_entity
 
-    def respawn(self, location: pg.Vector2, sprite: dict=None, uuid=None) -> None:
-        self.uuid = uuid
+    def respawn(self, location: pg.Vector2, sprite: dict=None) -> None:
         self._sprite = None
         self._sprite_name = None
         if sprite:
@@ -54,8 +53,7 @@ class Entity:
             self._sprite = AnimatedSprite(None, location)
         self._facing_left = False
         self._velocity = pg.Vector2(0,0)
-        self._hp = 100
-        self._atack = 10
+        self._hp = self._max_hp
         self.is_alive = True
 
     def damage(self, damage: int) -> None:
@@ -69,7 +67,8 @@ class Entity:
             target_velocity = target_velocity.normalize() * self._max_velocity
         self._velocity = target_velocity
 
-    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: list[pg.Rect]) -> None:
+    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: list[Entity]) -> None:
+        logger.debug(f'move_to_avoiding: Moving {self.uuid=} towards {destination=}')
         # Determine target velocity towards the player
         target_velocity = pg.Vector2(0, 0)
         target_velocity = (destination - self.get_location()) * self._max_velocity
@@ -142,28 +141,35 @@ class Entity:
         self._sprite.update_animation()
 
     def net_update(self, remote_entity:dict) -> None:
-        logger.debug(f'net_update: {remote_entity=}')
-        left = remote_entity['location']['x']
-        top = remote_entity['location']['y']
-        self._sprite.rect.update(left, top, self._sprite.rect.width, self._sprite.rect.height)
-        self._velocity.x = remote_entity['velocity']['x']
-        self._velocity.y = remote_entity['velocity']['y']
-        self._facing_left = remote_entity['facing_left']
-        if 'is_alive' in remote_entity.keys():
-            self.is_alive = remote_entity['is_alive']
-        else:
-            logger.error(f'net_update: Key not found "is_alive" in received update for {remote_entity=}')
+        try:
+            logger.debug(f'net_update: {remote_entity=}')
+            left = remote_entity['location']['x']
+            top = remote_entity['location']['y']
+            self._sprite.rect.update(left, top, self._sprite.rect.width, self._sprite.rect.height)
+            self._velocity.x = remote_entity['velocity']['x']
+            self._velocity.y = remote_entity['velocity']['y']
+            self._facing_left = remote_entity['facing_left']
+            if 'is_alive' in remote_entity.keys():
+                self.is_alive = remote_entity['is_alive']
+            else:
+                logger.error(f'net_update: Key not found "is_alive" in received update for {remote_entity=}')
+        except Exception as e:
+            logger.error(f'{e=} {remote_entity}')
         
     def serialize(self) -> dict:
         return {
-            'uuid': str(self.uuid),
-            'location' : { 'x' : self._sprite.rect.left, 'y': self._sprite.rect.top,
-                            'height': self._sprite.rect.height, 'width': self._sprite.rect.width},
-            'velocity' : { 'x' : self._velocity.x, 'y': self._velocity.y},
-            'sprite': self._sprite_name,
-            'facing_left': self._facing_left,
-            'name' : self._name,
-            'is_alive' : self.is_alive
+            str(self.uuid): {    
+                'location' : { 'x' : self._sprite.rect.left, 'y': self._sprite.rect.top,
+                                'height': self._sprite.rect.height, 'width': self._sprite.rect.width},
+                'velocity' : { 'x' : self._velocity.x, 'y': self._velocity.y},
+                'sprite': self._sprite_name,
+                'facing_left': self._facing_left,
+                'name' : self._name,
+                'is_alive' : self.is_alive,
+                'max_velocity': self._max_velocity,
+                'hp' : self._hp,
+                'max_hp' : self._max_hp
+            }
         }
     def draw(self, screen, color=(255,0,0,255)) -> None:
         self._sprite.draw(screen, flip=self._facing_left, color=color)
@@ -176,7 +182,7 @@ class Entity:
 
 class Enemy(Entity):
     def __init__(self, location: pg.Vector2, sprite: dict = None, uuid=None, target_uuid=None, name:str=None) -> None:
-        self._target = target_uuid
+        self.target = target_uuid
         super().__init__(location, sprite, uuid, name)
     
     @staticmethod
@@ -195,22 +201,17 @@ class Enemy(Entity):
     
     def serialize(self) -> dict:
         ret_val = super().serialize()
-        ret_val['target'] = str(self._target)
-        ret_val['type'] = 'enemy'
+        ret_val[str(self.uuid)]['target'] = str(self.target)
+        ret_val[str(self.uuid)]['type'] = 'enemy'
         return ret_val
     
     def net_update(self, remote_entity: dict) -> None:
-        if self._target != uuid.UUID(remote_entity['target']):
-            logger.error(f'net_update:{self._target=} != {remote_entity["target"]=}')
-        # self._target = remote_entity['target']
-        return super().net_update(remote_entity)
-
-    def update_target(self, target_uuid) -> None:
-        self._target = target_uuid
+        super().net_update(remote_entity)
+        self.target = None if remote_entity['target'] == None else uuid.UUID(remote_entity['target'])
     
     def move_to_target(self, player_position_list:list) -> None:
         for player in player_position_list:
-            if player['uuid'] == self._target:
+            if player['uuid'] == self.target:
                 super().move_to(player['position'])
 
 class Player(Entity):
@@ -255,6 +256,12 @@ class Player(Entity):
         pg.draw.rect(screen, (255,0,0,255),bar)
         pg.draw.rect(screen, (0,0,0,255),rect,1,1)
         pass
+
+    def serialize(self) -> dict:
+        ret_val = super().serialize()
+        ret_val[str(self.uuid)]['type'] = 'player'
+        return ret_val
+    
     def draw(self, screen) -> None:
         self.draw_healthbar(screen)
         # name = self._font.render(self._name, True, (0, 0, 0))

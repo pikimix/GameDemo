@@ -20,9 +20,11 @@ class WebSocketClient:
             if self.message_handler:
                 self.message_handler(message)
         except json.JSONDecodeError as e:
-            logger.error(f'on_message:JSON decode error: {e}')
+            logger.error(f'on_message:JSON decode error:1: {e=}')
+            logger.error(f'on_message:JSON decode error:2: {message=}')
         except TypeError as e:
-            logger.error(f'on_message:Type error: {e}')
+            logger.error(f'on_message:Type error:1: {e=}')
+            logger.error(f'on_message:Type error:2: {message=}')
         except Exception as e:
             logger.error(f'on_message:An unexpected error occurred:1: {e=}')
             logger.error(f'on_message:An unexpected error occurred:2: {message=}')
