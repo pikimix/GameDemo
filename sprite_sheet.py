@@ -52,7 +52,7 @@ class AnimatedSprite(pg.sprite.Sprite):
         surface.blit(flipped, (0,0), self._frame)
         return pg.mask.from_surface(surface)
 
-    def draw(self, screen: pg.Surface, color:=None, flip: bool=False):
+    def draw(self, screen: pg.Surface, color=None, flip: bool=False):
         tinted = self.image.copy()
         if color:
             tinted.fill(color,None,pg.BLEND_RGBA_MIN)
