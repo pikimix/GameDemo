@@ -54,8 +54,8 @@ class Scene:
             payload['score'] = self._score
         self._player.update(dt, self._screen.get_rect())
         was_alive = self._player.is_alive
-        enemy_update = self.collision_detection(enemies, enemies_rects)
-        payload['entities'] = enemy_update
+        self.collision_detection(enemies, enemies_rects)
+        payload['entities'] = [e.serialize() for e in enemies]
         if not self._player.is_alive and was_alive:
             self._score = pg.time.get_ticks() - self._last_start
             payload['score'] = self._score
@@ -69,15 +69,12 @@ class Scene:
             self._ws_client.send(payload)
 
     def collision_detection(self, enemies, enemies_rect):
-        enemy_update = []
         collision_list = self._player.get_rect().collidelistall(enemies_rect)
         for idx, enemy in enumerate(enemies):
             if idx in collision_list and enemy.check_collides(self._player):
                 self._player.damage(enemy._atack)
             if enemy._target == self._uuid:
-                enemy.move_to_avoiding(self._player.get_location(), enemies)
-                enemy_update.append(enemy.serialize())
-        return enemy_update
+                enemy.move_to_avoiding(self._player.get_location(), enemies_rect)
 
     def check_if_player_alive(self):
         logger.info(f'check_if_player_alive: {self._player.is_alive=}')
