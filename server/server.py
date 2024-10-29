@@ -35,6 +35,9 @@ class WebSocketServer:
         self.update_interval = 0.01  # Update interval in seconds
         self.scores = {}
 
+    async def send_update(self):
+        await self.broadcast(None, {"entities": self.entities})
+
     async def handler(self, websocket, path):
         # Wait for the initial message containing the UUID
         try:
@@ -116,10 +119,10 @@ class WebSocketServer:
 
                 combined_payload["entities"] = self.entities
                 
-                logger.debug(f'handle_message: {combined_payload=}')
+                # logger.debug(f'handle_message: {combined_payload=}')
                 # Broadcast the combined message to all connected clients
                 # await self.broadcast(client_id, combined_payload)
-                await self.broadcast(None, combined_payload)
+                # await self.broadcast(None, combined_payload)
             if 'score' in data.keys():
                 if data['uuid'] in self.scores.keys():
                     logger.info(self.scores[data['uuid']])

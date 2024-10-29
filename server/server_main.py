@@ -27,6 +27,7 @@ async def update_entities(server :WebSocketServer):
             # Optionally, broadcast the updated state if necessary
             # await server.broadcast(None, {"entities": server.entities})
             last_update_time = current_time
+            await server.send_update()
         await asyncio.sleep(0.01)  # Adjust sleep time as needed
 
 def update(server, dt:float):
@@ -47,30 +48,30 @@ def update(server, dt:float):
                 entity['location']['height']
             )
             # # check distance to other entities
-            for other_entity in server.entities:
-                if other_entity != entity and other_entity['type'] == 'enemy':
-                    # Calculate distance between entities
-                    dx = entity['location']['x'] - other_entity['location']['x']
-                    dy = entity['location']['y'] - other_entity['location']['y']
-                    distance = (dx**2 + dy**2)**0.5  # Euclidean distance
+            # for other_entity in server.entities:
+            #     if other_entity != entity and other_entity['type'] == 'enemy':
+            #         # Calculate distance between entities
+            #         dx = entity['location']['x'] - other_entity['location']['x']
+            #         dy = entity['location']['y'] - other_entity['location']['y']
+            #         distance = (dx**2 + dy**2)**0.5  # Euclidean distance
 
-                    # If they are too close, adjust positions
-                    if distance < collision_radius:
-                        # Calculate the overlap
-                        overlap = collision_radius - distance
+            #         # If they are too close, adjust positions
+            #         if distance < collision_radius:
+            #             # Calculate the overlap
+            #             overlap = collision_radius - distance
 
-                        # Normalize the direction vector
-                        if distance > 0:
-                            nx = dx / distance
-                            ny = dy / distance
+            #             # Normalize the direction vector
+            #             if distance > 0:
+            #                 nx = dx / distance
+            #                 ny = dy / distance
                             
-                            # Move this entity away from the other entity
-                            entity['location']['x'] += nx * overlap * 0.5  # Adjust position
-                            entity['location']['y'] += ny * overlap * 0.5
+            #                 # Move this entity away from the other entity
+            #                 entity['location']['x'] += nx * overlap * 0.5  # Adjust position
+            #                 entity['location']['y'] += ny * overlap * 0.5
 
-                            # Move the other entity in the opposite direction
-                            other_entity['location']['x'] -= nx * overlap * 0.5
-                            other_entity['location']['y'] -= ny * overlap * 0.5
+            #                 # Move the other entity in the opposite direction
+            #                 other_entity['location']['x'] -= nx * overlap * 0.5
+            #                 other_entity['location']['y'] -= ny * overlap * 0.5
 
         # new_x = entity['location']['x'] + entity['velocity']['x']
         # new_y = entity['location']['y'] + entity['velocity']['y']
