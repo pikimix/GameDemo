@@ -4,6 +4,7 @@ import pygame as pg
 from math import radians
 import logging
 import uuid
+from typing import Dict
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
@@ -67,22 +68,23 @@ class Entity:
             target_velocity = target_velocity.normalize() * self._max_velocity
         self._velocity = target_velocity
 
-    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: list[Entity]) -> None:
+    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: Dict[str,Entity]) -> None:
         logger.debug(f'move_to_avoiding: Moving {self.uuid=} towards {destination=}')
         # Determine target velocity towards the player
         target_velocity = pg.Vector2(0, 0)
         target_velocity = (destination - self.get_location()) * self._max_velocity
 
-        collide_list = self.get_rect().collidelistall(avoid_list)
+        collide_list = self.get_rect().collidedictall(avoid_list, values=True)
+        # collide_list = [k[0] for k in collide_list]
         # Check for collision with other avoid_list
-        for idx in collide_list:
-            distance = self.get_location().distance_to(avoid_list[idx].center)
+        for key, val in collide_list:
+            distance = self.get_location().distance_to(avoid_list[key].center)
             if distance: # if distance is 0, assume this is us and skip
-                collision_radius = avoid_list[idx].width/2
+                collision_radius = avoid_list[key].width/2
 
                 if distance < collision_radius:
                     # Calculate a direction vector to avoid the other entity
-                    direction = self.get_location() - avoid_list[idx].center
+                    direction = self.get_location() - avoid_list[key].center
 
                     # Move away from the other entity
                     target_velocity += direction * self._max_velocity  # Adjust strength as needed
@@ -91,7 +93,7 @@ class Entity:
         if target_velocity.length() != 0:
             target_velocity = target_velocity.normalize() * self._max_velocity
         self._velocity = target_velocity
-        logger.info(f'Entity: move_to_avoiding: {tuple(target_velocity)=}')
+        # logger.info(f'Entity: move_to_avoiding: {tuple(target_velocity)=}')
         self.update_position(tuple(self._velocity))
                         
     def update_position(self, offset: tuple):
@@ -157,19 +159,17 @@ class Entity:
             logger.error(f'{e=} {remote_entity}')
         
     def serialize(self) -> dict:
-        return {
-            str(self.uuid): {    
-                'location' : { 'x' : self._sprite.rect.left, 'y': self._sprite.rect.top,
-                                'height': self._sprite.rect.height, 'width': self._sprite.rect.width},
-                'velocity' : { 'x' : self._velocity.x, 'y': self._velocity.y},
-                'sprite': self._sprite_name,
-                'facing_left': self._facing_left,
-                'name' : self._name,
-                'is_alive' : self.is_alive,
-                'max_velocity': self._max_velocity,
-                'hp' : self._hp,
-                'max_hp' : self._max_hp
-            }
+        return {    
+            'location' : { 'x' : self._sprite.rect.left, 'y': self._sprite.rect.top,
+                            'height': self._sprite.rect.height, 'width': self._sprite.rect.width},
+            'velocity' : { 'x' : self._velocity.x, 'y': self._velocity.y},
+            'sprite': self._sprite_name,
+            'facing_left': self._facing_left,
+            'name' : self._name,
+            'is_alive' : self.is_alive,
+            'max_velocity': self._max_velocity,
+            'hp' : self._hp,
+            'max_hp' : self._max_hp
         }
     def draw(self, screen, color=(255,0,0,255)) -> None:
         self._sprite.draw(screen, flip=self._facing_left, color=color)
@@ -201,8 +201,8 @@ class Enemy(Entity):
     
     def serialize(self) -> dict:
         ret_val = super().serialize()
-        ret_val[str(self.uuid)]['target'] = str(self.target)
-        ret_val[str(self.uuid)]['type'] = 'enemy'
+        ret_val['target'] = str(self.target)
+        ret_val['type'] = 'enemy'
         return ret_val
     
     def net_update(self, remote_entity: dict) -> None:
@@ -259,7 +259,7 @@ class Player(Entity):
 
     def serialize(self) -> dict:
         ret_val = super().serialize()
-        ret_val[str(self.uuid)]['type'] = 'player'
+        ret_val['type'] = 'player'
         return ret_val
     
     def draw(self, screen) -> None:

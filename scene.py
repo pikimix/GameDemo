@@ -32,6 +32,7 @@ class Scene:
 
     def update(self, dt: float) -> None:
         enemies = [e for e in self._entities if type(e) == Enemy]
+        enemies_rect = {str(e.uuid):e.get_rect() for e in self._entities if type(e) == Enemy}
         # update animation for remote players
         [e.update_animation() for e in self._entities if type(e) == Entity]
         payload = {'uuid':str(self._uuid), 'name': self._name, 'entities':{}}
@@ -46,37 +47,28 @@ class Scene:
             self._score = pg.time.get_ticks() - self._last_start
             payload['score'] = self._score
             self._player.update(dt, self._screen.get_rect())
-        enemy_update = []
-        for enemy in enemies:
-            if enemy.is_alive:
-                collides = enemy.check_collides(self._player)
-                if collides:
-                    was_alive = self._player.is_alive
-                    self._player.damage(enemy._atack)
-                    if not self._player.is_alive and was_alive:
-                        self._score = pg.time.get_ticks() - self._last_start
-                        payload['score'] = self._score
-                if enemy.target == self._uuid:
-                    enemy.move_to_avoiding(self._player.get_location(), enemies)
-                    enemy_update.append(enemy)
-        for enemy in enemy_update:
-            for e_uuid, enemy_dict in enemy.serialize().items():
-                payload['entities'][e_uuid] = enemy_dict
-                logger.info(f"{enemy_dict=}")
-
-        for p_uuid, send_data in self._player.serialize().items():
-            logger.debug(f'update: {p_uuid=} {send_data=}')
-            payload['entities'][p_uuid] = (send_data)
+        was_alive = self._player.is_alive
+        if enemies_rect: 
+            self.collision_detection(enemies, enemies_rect)
+            payload['entities'] = {str(e.uuid): e.serialize() for e in enemies}
+        if not self._player.is_alive and was_alive:
+            self._score = pg.time.get_ticks() - self._last_start
+            payload['score'] = self._score
+        
+        # add player to payload
+        payload['entities'][str(self._player.uuid)] = self._player.serialize()
         
         if self._ws_client.running:
+            # logger.info(f'\n\n{json.dumps(payload)=}\n\n')
             self._ws_client.send(payload)
 
-    def collision_detection(self, enemies, enemies_rect):
-        collision_list = self._player.get_rect().collidelistall(enemies_rect)
-        for idx, enemy in enumerate(enemies):
-            if idx in collision_list and enemy.check_collides(self._player):
+    def collision_detection(self, enemies:list[Enemy], enemies_rect):
+        collision_list = self._player.get_rect().collidedictall(enemies_rect, values=True)
+        collision_list = [k[0] for k in collision_list]
+        for enemy in enemies:
+            if str(enemy.uuid) in collision_list and enemy.check_collides(self._player):
                 self._player.damage(enemy._atack)
-            if enemy._target == self._uuid:
+            if enemy.target == self._uuid:
                 enemy.move_to_avoiding(self._player.get_location(), enemies_rect)
 
     def check_if_player_alive(self):
