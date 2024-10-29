@@ -69,31 +69,32 @@ class Entity:
             target_velocity = target_velocity.normalize() * self._max_velocity
         self._velocity = target_velocity
 
-    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: list[Entity]) -> None:
+    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: list[pg.Rect]) -> None:
         # Determine target velocity towards the player
         target_velocity = pg.Vector2(0, 0)
         target_velocity = (destination - self.get_location()) * self._max_velocity
 
+        collide_list = self.get_rect().collidelistall(avoid_list)
         # Check for collision with other avoid_list
-        for entity in avoid_list:
-            if entity != self:  # Avoid checking against itself
-                distance = self.get_location().distance_to(entity.get_location())
-                collision_radius = entity.get_rect().width/2
+        for idx in collide_list:
+            distance = self.get_location().distance_to(avoid_list[idx].center)
+            if distance: # if distance is 0, assume this is us and skip
+                collision_radius = avoid_list[idx].width/2
 
                 if distance < collision_radius:
                     # Calculate a direction vector to avoid the other entity
-                    direction = self.get_location() - entity.get_location()
-                    if direction.length() != 0:
-                        direction.normalize_ip()  # Normalize to get a unit vector
+                    direction = self.get_location() - avoid_list[idx].center
 
                     # Move away from the other entity
-                    target_velocity += direction * 100  # Adjust strength as needed
+                    target_velocity += direction * self._max_velocity  # Adjust strength as needed
 
         # Set the final velocity, ensuring it’s capped or constrained as needed
         if target_velocity.length() != 0:
             target_velocity = target_velocity.normalize() * self._max_velocity
         self._velocity = target_velocity
-
+        logger.info(f'Entity: move_to_avoiding: {tuple(target_velocity)=}')
+        self.update_position(tuple(self._velocity))
+                        
     def update_position(self, offset: tuple):
         self._sprite.rect.move(offset)
 
