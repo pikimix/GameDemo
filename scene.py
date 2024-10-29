@@ -39,7 +39,8 @@ class Scene:
 
     def update(self, dt: float) -> None:
         enemies = [e for e in self._entities if type(e) == Enemy]
-        players = [e.update_animation() for e in self._entities if type(e) == Entity]
+        enemies_rects = [e.get_rect() for e in self._entities if type(e) == Enemy]
+        # players = [e.update_animation() for e in self._entities if type(e) == Entity]
         payload = {'uuid':str(self._uuid), 'name': self._name, 'entities':[]}
         if not self._player.is_alive:
             keys = pg.key.get_pressed()
@@ -52,21 +53,12 @@ class Scene:
             self._score = pg.time.get_ticks() - self._last_start
             payload['score'] = self._score
         self._player.update(dt, self._screen.get_rect())
-        enemy_update = []
-        for enemy in enemies:
-            collides = enemy.check_collides(self._player)
-            if collides:
-                was_alive = self._player.is_alive
-                self._player.damage(enemy._atack)
-                if not self._player.is_alive and was_alive:
-                    self._score = pg.time.get_ticks() - self._last_start
-                    payload['score'] = self._score
-            if enemy._target == self._uuid:
-                enemy.move_to_avoiding(self._player.get_location(), enemies)
-                enemy_update.append(enemy)
-        for enemy in enemy_update:
-            payload['entities'].append(enemy.serialize())
-
+        was_alive = self._player.is_alive
+        enemy_update = self.collision_detection(enemies, enemies_rects)
+        payload['entities'] = enemy_update
+        if not self._player.is_alive and was_alive:
+            self._score = pg.time.get_ticks() - self._last_start
+            payload['score'] = self._score
         send_data = self._player.serialize()
         send_data['type'] = 'player'
         send_data['timestamp'] = pg.time.get_ticks()
@@ -75,6 +67,17 @@ class Scene:
         
         if self._ws_client.running:
             self._ws_client.send(payload)
+
+    def collision_detection(self, enemies, enemies_rect):
+        enemy_update = []
+        collision_list = self._player.get_rect().collidelistall(enemies_rect)
+        for idx, enemy in enumerate(enemies):
+            if idx in collision_list and enemy.check_collides(self._player):
+                self._player.damage(enemy._atack)
+            if enemy._target == self._uuid:
+                enemy.move_to_avoiding(self._player.get_location(), enemies)
+                enemy_update.append(enemy.serialize())
+        return enemy_update
 
     def check_if_player_alive(self):
         logger.info(f'check_if_player_alive: {self._player.is_alive=}')
