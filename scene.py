@@ -54,18 +54,21 @@ class Scene:
         if enemies_rect: 
             self.collision_detection(enemies, enemies_rect)
             [enemies[e].move_to_avoiding(self._player.get_location(), enemies_rect) for e in enemies if enemies[e].target == self._uuid]
-            payload['entities'] = {e: enemies[e].serialize() for e in enemies}
         if not self._player.is_alive and was_alive:
             self._score = pg.time.get_ticks() - self._last_start
             payload['score'] = self._score
-        
+            for e in enemies: 
+                if enemies[e].target == self._uuid: 
+                    enemies[e].is_alive = False
+                    enemies[e].target = None
+
+        payload['entities'] = {e: enemies[e].serialize() for e in enemies}
         # add player to payload
         payload['entities'][str(self._player.uuid)] = self._player.serialize()
         
         if self._ws_client.running:
             # logger.info(f'\n\n{json.dumps(payload)=}\n\n')
             self._ws_client.send(payload)
-
     def collision_detection(self, enemies:dict[str, Enemy], enemies_rect:dict[str, pg.Rect]):
         collision_list = self._player.get_rect().collidedictall(enemies_rect, values=True)
         collision_list = [k[0] for k in collision_list]
@@ -107,6 +110,7 @@ class Scene:
                 if r_uuid != str(self._uuid):
                     if remote_entity['type'] == 'player': self.update_other_players(r_uuid, remote_entity)
                     elif remote_entity['type'] == 'enemy': self.update_enemy(r_uuid, remote_entity)
+                    else: logger.info(f"could not process: {r_uuid=} {remote_entity=}")
         if 'remove' in data.keys():
             logger.error('handle_message:Received remove message - This should no longer happen')
             # if isinstance(data['remove'], list):
