@@ -55,7 +55,7 @@ class WebSocketServer:
         self.scores = {}
 
     async def send_update(self):
-        await self.broadcast(None, {"entities": self.entities})
+        await self.broadcast(None, {"entities": {**self.entities, **self.players}})
 
     async def handler(self, websocket, path):
         # Wait for the initial message containing the UUID
