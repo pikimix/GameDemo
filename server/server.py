@@ -96,23 +96,25 @@ class WebSocketServer:
                 combined_payload = {}
                 for r_uuid, remote_entity in data['entities'].items():
                     if r_uuid in self.entities.keys():
-                        if remote_entity['type'] == 'enemy':
-                            logger.debug(f'before:{self.entities[r_uuid]["velocity"]}')
-                            self.entities[r_uuid]['velocity'] = remote_entity['velocity']
-                            logger.debug(f'after: {self.entities[r_uuid]["velocity"]}')
-                            logger.debug(f"{self.entities[r_uuid]['target']=} {self.entities[r_uuid]['location']=}")
-                            self.entities[r_uuid]['is_alive'] = remote_entity['is_alive']
+                        logger.debug(f'before:{self.entities[r_uuid]["velocity"]}')
+                        self.entities[r_uuid]['velocity'] = remote_entity['velocity']
+                        logger.debug(f'after: {self.entities[r_uuid]["velocity"]}')
+                        logger.debug(f"{self.entities[r_uuid]['target']=} {self.entities[r_uuid]['location']=}")
+                        self.entities[r_uuid]['is_alive'] = remote_entity['is_alive']
                     elif r_uuid in self.players.keys():
                         if not remote_entity['is_alive'] and self.players[r_uuid]['is_alive']:
                             self.remove_enemys_targeting(r_uuid)
                         elif remote_entity['is_alive'] and not self.players[r_uuid]['is_alive']:
                             self.spawn_enemies(r_uuid,1)
-                            self.players[r_uuid] = remote_entity
+                        self.players[r_uuid] = remote_entity
                     else:
-                        if remote_entity['type'] == 'enemy':
-                            self.entities[r_uuid] = remote_entity
-                        elif remote_entity['type'] == 'player':
-                            self.players[r_uuid] = remote_entity
+                        try:
+                            if remote_entity['type'] == 'enemy':
+                                self.entities[r_uuid] = remote_entity
+                            elif remote_entity['type'] == 'player':
+                                self.players[r_uuid] = remote_entity
+                        except Exception as e:
+                            logger.info(f'\n\n{r_uuid=} {remote_entity=}\n\n')
 
                 combined_payload["entities"] = {**self.entities, **self.players}
                 
