@@ -40,6 +40,7 @@ class Entity:
             name = entity['name']
         new_entity = Entity(loc, sprite, e_uuid, name)
         new_entity._facing_left= entity['facing_left']
+        new_entity.is_alive = entity['is_alive']
         new_entity._velocity = pg.Vector2(entity['velocity']['x'], entity['velocity']['y'])
         return new_entity
 
@@ -194,6 +195,7 @@ class Enemy(Entity):
         target = uuid.UUID(enemy['target']) if enemy['target'] else None
         new_enemy = Enemy(loc, sprite, e_uuid, target)
         new_enemy._facing_left= enemy['facing_left']
+        new_enemy.is_alive = enemy['is_alive']
         new_enemy._velocity = pg.Vector2(enemy['velocity']['x'], enemy['velocity']['y'])
         return new_enemy
     # def update(self, dt: float) -> None:
