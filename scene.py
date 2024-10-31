@@ -68,8 +68,7 @@ class Scene:
     def collision_detection(self, enemies:dict[str:Enemy], enemies_rect:dict[str:pg.Rect]):
         collision_list = self._player.get_rect().collidedictall(enemies_rect, values=True)
         collision_list = [k[0] for k in collision_list]
-        if collision_list: logger.info(f'{collision_list=}')
-        for key, entity in collision_list:
+        for key in collision_list:
             if key in enemies and enemies[key].check_collides(self._player):
                 self._player.damage(enemies[key]._atack)
             if enemies[key].target == self._uuid:
