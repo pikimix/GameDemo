@@ -54,15 +54,16 @@ class Scene:
         if enemies_rect: 
             self.collision_detection(enemies, enemies_rect)
             [enemies[e].move_to_avoiding(self._player.get_location(), enemies_rect) for e in enemies if enemies[e].target == self._uuid]
-        if not self._player.is_alive and was_alive:
-            self._score = pg.time.get_ticks() - self._last_start
-            payload['score'] = self._score
+        if not self._player.is_alive:
             for e in enemies: 
                 if enemies[e].target == self._uuid: 
                     enemies[e].is_alive = False
                     enemies[e].target = None
+            if was_alive:
+                self._score = pg.time.get_ticks() - self._last_start
+                payload['score'] = self._score
 
-        payload['entities'] = {e: enemies[e].serialize() for e in enemies}
+        payload['entities'] = {e: enemies[e].serialize() for e in enemies if enemies[e].target == self._uuid}
         # add player to payload
         payload['entities'][str(self._player.uuid)] = self._player.serialize()
         
@@ -81,7 +82,7 @@ class Scene:
         return self._player.is_alive
 
     def update_other_players(self, r_uuid_text, entity):
-        logger.info(f'{r_uuid_text=} {entity["is_alive"]=}')
+        logger.debug(f'{r_uuid_text=} {entity["is_alive"]=}')
         try:
             if r_uuid_text in self._other_players:
                 self._other_players[r_uuid_text].net_update(entity)
@@ -110,21 +111,9 @@ class Scene:
                 if r_uuid != str(self._uuid):
                     if remote_entity['type'] == 'player': self.update_other_players(r_uuid, remote_entity)
                     elif remote_entity['type'] == 'enemy': self.update_enemy(r_uuid, remote_entity)
-                    else: logger.info(f"could not process: {r_uuid=} {remote_entity=}")
+                    else: logger.error(f"could not process: {r_uuid=} {remote_entity=}")
         if 'remove' in data.keys():
             logger.error('handle_message:Received remove message - This should no longer happen')
-            # if isinstance(data['remove'], list):
-            #     for r_uuid in data['remove']:
-            #         remove_idx = next((idx for idx, entity in enumerate(self._entities) if entity.uuid == uuid.UUID(r_uuid)), None)
-            #         if isinstance(remove_idx, int):
-            #             logger.info(f'handle_message:Found {r_uuid}')
-            #             self._entities.pop(remove_idx)
-            #         else:
-            #             logger.info(f'handle_message:Could not find {r_uuid}')
-            #     if r_uuid in self._leader_board.keys():
-            #         del self._leader_board[r_uuid]
-            # else:
-            #     logger.error(f'handle_message: Received incorrectly formatted removal message : {data=}')
         if 'scores' in data.keys():
             self._leader_board = data['scores']
 
@@ -137,7 +126,7 @@ class Scene:
             if self._enemies[enemy].is_alive:
                 self._enemies[enemy].draw(self._screen)
         for player in self._other_players:
-            logger.info(f"{player=} {self._other_players[player].is_alive=}")
+            logger.debug(f"{player=} {self._other_players[player].is_alive=}")
             if self._other_players[player].is_alive:
                 self._other_players[player].draw(self._screen, (255,255,0,255))
         self.draw_scoreboard()
