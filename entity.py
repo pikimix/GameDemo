@@ -152,10 +152,7 @@ class Entity:
             self._velocity.x = remote_entity['velocity']['x']
             self._velocity.y = remote_entity['velocity']['y']
             self._facing_left = remote_entity['facing_left']
-            if 'is_alive' in remote_entity.keys():
-                self.is_alive = remote_entity['is_alive']
-            else:
-                logger.error(f'net_update: Key not found "is_alive" in received update for {remote_entity=}')
+            self.is_alive = remote_entity['is_alive']
         except Exception as e:
             logger.error(f'{e=} {remote_entity}')
         
