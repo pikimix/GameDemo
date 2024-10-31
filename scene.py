@@ -53,6 +53,7 @@ class Scene:
         was_alive = self._player.is_alive
         if enemies_rect: 
             self.collision_detection(enemies, enemies_rect)
+            [enemies[e].move_to_avoiding(self._player.get_location(), enemies_rect) for e in enemies if enemies[e].target == self._uuid]
             payload['entities'] = {e: enemies[e].serialize() for e in enemies}
         if not self._player.is_alive and was_alive:
             self._score = pg.time.get_ticks() - self._last_start
@@ -71,8 +72,6 @@ class Scene:
         for key in collision_list:
             if key in enemies and enemies[key].check_collides(self._player):
                 self._player.damage(enemies[key]._atack)
-            if enemies[key].target == self._uuid:
-                enemies[key].move_to_avoiding(self._player.get_location(), enemies_rect)
 
     def check_if_player_alive(self):
         logger.info(f'check_if_player_alive: {self._player.is_alive=}')
