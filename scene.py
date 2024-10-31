@@ -19,8 +19,8 @@ class Scene:
         self._ws_client.set_message_handler(self.handle_message)
         self._ws_client.start()
         self._screen = pg.display.set_mode((1280, 720))
-        self._other_players: dict[str:Player] = {}
-        self._enemies: dict[str:Enemy] = {}
+        self._other_players: dict[str, Player] = {}
+        self._enemies: dict[str, Enemy] = {}
         self._sprite_list = SpriteSet({'player': 'assets/player.png'})
         self._player = Player(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
                 {'player': self._sprite_list.get_sprite('player')}, self._uuid, name)
@@ -66,7 +66,7 @@ class Scene:
             # logger.info(f'\n\n{json.dumps(payload)=}\n\n')
             self._ws_client.send(payload)
 
-    def collision_detection(self, enemies:dict[str:Enemy], enemies_rect:dict[str:pg.Rect]):
+    def collision_detection(self, enemies:dict[str, Enemy], enemies_rect:dict[str, pg.Rect]):
         collision_list = self._player.get_rect().collidedictall(enemies_rect, values=True)
         collision_list = [k[0] for k in collision_list]
         for key in collision_list:
@@ -79,30 +79,24 @@ class Scene:
 
     def update_other_players(self, r_uuid_text, entity):
         logger.info(f'{r_uuid_text=} {entity["is_alive"]=}')
-        if r_uuid_text in self._other_players:
-            try:
+        try:
+            if r_uuid_text in self._other_players:
                 self._other_players[r_uuid_text].net_update(entity)
-            except Exception as e:
-                logger.error(f'update_other_players:update:{e=} : {r_uuid_text=} {entity=}')
-        else:
-            try:
+            else:
                 self._other_players[r_uuid_text] = Entity.from_dict(entity, self._sprite_list, uuid.UUID(r_uuid_text))
-            except Exception as e:
-                logger.error(f'update_other_players:add:{e=} : {r_uuid_text=} {entity=}')
+        except Exception as e:
+            logger.error(f'update_other_players:add:{e=} : {r_uuid_text=} {entity=}')
     def update_enemy(self, r_uuid_text, entity):
         r_uuid = uuid.UUID(r_uuid_text)
-        if r_uuid_text in self._enemies:
-            try:
+        try:
+            if r_uuid_text in self._enemies:
                 self._enemies[r_uuid_text].net_update(entity)
-            except Exception as e:
-                logger.error(f'update_enemy:update:{e=} : {r_uuid_text=} {entity=}')
-        else:
-            try:
+            else:
                 enemy = Enemy.from_dict(entity, self._sprite_list, r_uuid)
                 self._enemies[r_uuid_text] = enemy
-            except Exception as e:
-                logger.error(f'update_enemy:add:{e=} : {r_uuid_text=} {r_uuid=} {entity=}')
-                exit()
+        except Exception as e:
+            logger.error(f'update_enemy:add:{e=} : {r_uuid_text=} {r_uuid=} {entity=}')
+
     def handle_message(self, message):
         # Handle received message from the server
         logger.debug(f'handle_message: Received message: {type(message)=} {message=}')
