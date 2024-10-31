@@ -167,10 +167,9 @@ class Scene:
     def draw_scoreboard(self):
         score_header = self._font.render(f'All Player Top Scores', True, [0,0,0])
         score_lines = [score_header]
-        line_height = 0
+        line_height = score_header.get_height()
         for p_uuid, board in self._leader_board.items():
             line = self._font.render(f'{board["name"]}: {board["score"]}', True, [0,0,0])
-            line_height = line.get_height()
             score_lines.append(line)
         for idx, line in enumerate(score_lines):
             self._screen.blit(
