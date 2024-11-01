@@ -2,6 +2,7 @@ from __future__ import annotations # To make type hinting work when using classe
 from sprite_sheet import AnimatedSprite, SpriteSet
 import pygame as pg
 from math import radians
+from random import randint
 import logging
 import uuid
 from typing import Dict
@@ -21,7 +22,7 @@ class Entity:
             self._sprite = AnimatedSprite(None,location=location)
         self._facing_left = False
         self._velocity = pg.Vector2(0,0)
-        self._max_velocity = 350
+        self._max_velocity = 400
         self._hp = 100
         self._max_hp = 100
         self._atack = 2.5
@@ -191,6 +192,7 @@ class Enemy(Entity):
         self.target = target_uuid
         super().__init__(location, sprite, uuid, name)
         self._type = 'enemy'
+        self._max_velocity = randint(self._max_velocity/2, self._max_velocity)
 
     @staticmethod
     def from_dict(enemy: dict, sprite_list: SpriteSet, e_uuid: uuid.UUID) -> Enemy:
