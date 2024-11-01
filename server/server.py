@@ -93,7 +93,6 @@ class WebSocketServer:
         data = json.loads(message)
         if isinstance(data, dict):
             if 'entities' in data.keys():
-                combined_payload = {}
                 for r_uuid, remote_entity in data['entities'].items():
                     if r_uuid in self.entities.keys():
                         logger.debug(f'before:{self.entities[r_uuid]["velocity"]}')
@@ -116,12 +115,6 @@ class WebSocketServer:
                         except Exception as e:
                             logger.info(f'\n\n{r_uuid=} {remote_entity=}\n\n')
 
-                combined_payload["entities"] = {**self.entities, **self.players}
-                
-                # logger.debug(f'handle_message: {combined_payload=}')
-                # Broadcast the combined message to all connected clients
-                # await self.broadcast(client_id, combined_payload)
-                # await self.broadcast(None, combined_payload)
             if 'score' in data.keys():
                 if data['uuid'] in self.scores.keys():
                     logger.debug(self.scores[data['uuid']])
