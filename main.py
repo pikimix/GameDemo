@@ -41,7 +41,10 @@ except json.decoder.JSONDecodeError as e:
 if 'uuid' in config:
     p_uuid = config['uuid']
 if 'name' in config:
-    name = config['name']
+    if name: 
+        logger.info(f'Overwriting configured name {config["name"]} with {name} from command argument.')
+    else:
+        name = config['name']
 
 if not name and not config:
     name = input('No config file found, and no name set, please enter player name: ')
