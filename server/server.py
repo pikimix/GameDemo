@@ -133,7 +133,7 @@ class WebSocketServer:
     async def broadcast(self, sender_id, message):
         logger.debug(f'Broadcast Message: {message=}')
         for client_id, websocket in self.connected_clients.items():
-            if client_id != sender_id:  # Don't send the message back to the sender
+            if client_id != sender_id and websocket:  # Don't send the message back to the sender
                 try:
                     await websocket.send(json.dumps(message))
                     logger.debug(f"Sent message to {client_id}: {message}")
@@ -159,10 +159,7 @@ class WebSocketServer:
         if entity_id in self.connected_clients:
             logger.info(f'remove_entity: Received disconnect from {entity_id}')
             logger.debug(f'remove_entity: Removing from connected clients')
-            del self.connected_clients[entity_id]
-        if entity_id in self.scores.keys():
-            logger.debug(f'remove_entity: Removing from scores')
-            del self.scores[entity_id]
+            self.connected_clients[entity_id] = None
         if entity_id in self.entities.keys():
             self.entities[entity_id]['is_alive'] = False
         if entity_id in self.players.keys():
@@ -201,8 +198,9 @@ class WebSocketServer:
         # Close all connections gracefully
         logger.info("Closing all client connections...")
         for client_id, websocket in self.connected_clients.items():
-            await websocket.close()
-            logger.info(f"Closed connection for client: {client_id}")
+            if websocket:
+                await websocket.close()
+                logger.info(f"Closed connection for client: {client_id}")
 
 if __name__ == "__main__":
     server = WebSocketServer()
