@@ -125,6 +125,8 @@ class WebSocketServer:
                     if data['score'] > self.scores[data['uuid']]['score']:
                         self.scores[data['uuid']] = {'name': data['name'], 'score': data['score'], 'current_score': data['score']}
                         logger.debug(f'Set score for {data["uuid"]} to {self.scores[data["uuid"]]}')
+                    elif data['name'] != self.scores[data['uuid']]['name']:
+                        self.scores[data['uuid']]['name'] = data['name']
                 else:
                     self.scores[data['uuid']] = {'name': data['name'], 'score': data['score'], 'current_score': data['score']}
                     logger.debug(f'Set score for {data["uuid"]} to {self.scores[data["uuid"]]}')
