@@ -12,9 +12,9 @@ import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 class Scene:
-    def __init__(self, name:str, debug: bool=False, url: str='localhost', port: int=6789) -> None:
-        self._uuid = uuid.uuid4()
-        logger.info(self._uuid)
+    def __init__(self, name:str, debug: bool=False, url: str='localhost', port: int=6789, p_uuid=None) -> None:
+        self.uuid = uuid.UUID(p_uuid) if p_uuid else uuid.uuid4()
+        logger.info(self.uuid)
         self._ws_client = WebSocketClient(f'ws://{url}:{port}')
         self._ws_client.set_message_handler(self.handle_message)
         self._ws_client.start()
@@ -23,7 +23,7 @@ class Scene:
         self._enemies: dict[str, Enemy] = {}
         self._sprite_list = SpriteSet({'player': 'assets/player.png'})
         self._player = Player(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
-                {'player': self._sprite_list.get_sprite('player')}, self._uuid, name)
+                {'player': self._sprite_list.get_sprite('player')}, self.uuid, name)
         self._font = pg.font.SysFont('Ariel', 30)
         self._score = 0
         self._leader_board = {}
@@ -38,7 +38,7 @@ class Scene:
         # update animation for remote players
         [self._other_players[e].update_animation() for e in self._other_players ]
 
-        payload = {'uuid':str(self._uuid), 'name': self._name, 'entities':{}}
+        payload = {'uuid':str(self.uuid), 'name': self._name, 'entities':{}}
         if not self._player.is_alive:
             keys = pg.key.get_pressed()
             if keys[pg.K_SPACE]:
@@ -53,17 +53,17 @@ class Scene:
         was_alive = self._player.is_alive
         if enemies_rect: 
             self.collision_detection(enemies, enemies_rect)
-            [enemies[e].move_to_avoiding(self._player.get_location(), enemies_rect) for e in enemies if enemies[e].target == self._uuid]
+            [enemies[e].move_to_avoiding(self._player.get_location(), enemies_rect) for e in enemies if enemies[e].target == self.uuid]
         if not self._player.is_alive:
             for e in enemies: 
-                if enemies[e].target == self._uuid: 
+                if enemies[e].target == self.uuid: 
                     enemies[e].is_alive = False
                     enemies[e].target = None
             if was_alive:
                 self._score = pg.time.get_ticks() - self._last_start
                 payload['score'] = self._score
 
-        payload['entities'] = {e: enemies[e].serialize() for e in enemies if enemies[e].target == self._uuid}
+        payload['entities'] = {e: enemies[e].serialize() for e in enemies if enemies[e].target == self.uuid}
         # add player to payload
         payload['entities'][str(self._player.uuid)] = self._player.serialize()
         
@@ -108,7 +108,7 @@ class Scene:
         data = json.loads(message)
         if 'entities' in data.keys():
             for r_uuid, remote_entity in data['entities'].items():
-                if r_uuid != str(self._uuid):
+                if r_uuid != str(self.uuid):
                     if remote_entity['type'] == 'player': self.update_other_players(r_uuid, remote_entity)
                     elif remote_entity['type'] == 'enemy': self.update_enemy(r_uuid, remote_entity)
                     else: logger.error(f"could not process: {r_uuid=} {remote_entity=}")
