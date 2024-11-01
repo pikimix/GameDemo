@@ -30,6 +30,7 @@ class Entity:
         self._name = name
         self._type = 'entity'
         self._font = pg.font.SysFont('Futura', 30)
+        self._draw_hp = True
 
     @staticmethod
     def from_dict(entity: dict, sprite_list: SpriteSet, e_uuid: uuid.UUID) -> Entity:
@@ -182,7 +183,7 @@ class Entity:
         pg.draw.rect(screen, (0,0,0,255),rect,1,1)
 
     def draw(self, screen, color=(255,0,0,255)) -> None:
-        self.draw_healthbar(screen)
+        if self._draw_hp: self.draw_healthbar(screen)
         self._sprite.draw(screen, flip=self._facing_left, color=color)
         if self._name:
             name = self._font.render(self._name, True, (0, 0, 0))
@@ -197,6 +198,8 @@ class Enemy(Entity):
         super().__init__(location, sprite, uuid, name)
         self._type = 'enemy'
         self._max_velocity = randint(self._max_velocity/2, self._max_velocity)
+        self._draw_hp = False
+
 
     @staticmethod
     def from_dict(enemy: dict, sprite_list: SpriteSet, e_uuid: uuid.UUID) -> Enemy:
