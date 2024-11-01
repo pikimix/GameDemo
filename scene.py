@@ -78,7 +78,7 @@ class Scene:
         collision_list = [k[0] for k in collision_list]
         for key in collision_list:
             if key in enemies and enemies[key].check_collides(self._player):
-                self._player.damage(enemies[key]._atack)
+                self._player.damage(enemies[key]._atack, enemies[key].get_location())
                 break
 
     def check_if_player_alive(self):

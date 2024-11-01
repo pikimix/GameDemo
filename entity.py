@@ -22,10 +22,12 @@ class Entity:
             self._sprite = AnimatedSprite(None,location=location)
         self._facing_left = False
         self._velocity = pg.Vector2(0,0)
+        self._innertia_vector = pg.Vector2(0,0)
+        self._innertia_scaler = 0
         self._max_velocity = 400
         self._hp = 100
         self._max_hp = 100
-        self._atack = 2.5
+        self._atack = 25
         self.is_alive = True
         self._name = name
         self._type = 'entity'
@@ -61,10 +63,13 @@ class Entity:
         self._hp = self._max_hp
         self.is_alive = True
 
-    def damage(self, damage: int) -> None:
+    def damage(self, damage: int, source_location: pg.Vector2=None) -> None:
         self._hp -= damage
         if self._hp <= 0:
             self.is_alive = False
+        elif source_location:
+            self._innertia_vector = self.get_location() - source_location
+            self._innertia_scaler = 0.2
 
     def move_to(self, destination: pg.Vector2) -> None:
         target_velocity = destination - self.get_location()
@@ -133,7 +138,13 @@ class Entity:
 
     def update(self, dt: float, bounds:pg.Rect=None) -> None:
         logger.info(f'Entity:update: {self._type=}{self._velocity=}')
-        self._sprite.update(self._velocity * dt)
+        if self._innertia_scaler>0:
+            inertia = self._innertia_vector * self._max_velocity * self._innertia_scaler
+            inertia += self._velocity
+            self._sprite.update(inertia * dt)
+            self._innertia_scaler -= 0.05
+        else:
+            self._sprite.update(self._velocity * dt)
         if bounds:
             if self._sprite.rect.left < bounds.left:
                 self._sprite.rect.left = bounds.left
