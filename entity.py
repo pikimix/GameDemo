@@ -21,12 +21,13 @@ class Entity:
             self._sprite = AnimatedSprite(None,location=location)
         self._facing_left = False
         self._velocity = pg.Vector2(0,0)
-        self._max_velocity = 250
+        self._max_velocity = 350
         self._hp = 100
         self._max_hp = 100
         self._atack = 2.5
         self.is_alive = True
         self._name = name
+        self._type = 'entity'
         self._font = pg.font.SysFont('Futura', 30)
 
     @staticmethod
@@ -69,37 +70,43 @@ class Entity:
             target_velocity = target_velocity.normalize() * self._max_velocity
         self._velocity = target_velocity
 
-    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: Dict[str,Entity]) -> None:
+    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: Dict[str,Entity], dt:float) -> None:
         logger.debug(f'move_to_avoiding: Moving {self.uuid=} towards {destination=}')
         # Determine target velocity towards the player
+        self.move_to(destination)
         target_velocity = pg.Vector2(0, 0)
-        target_velocity = (destination - self.get_location()) * self._max_velocity
 
         collide_list = self.get_rect().collidedictall(avoid_list, values=True)
-        # collide_list = [k[0] for k in collide_list]
+
         # Check for collision with other avoid_list
-        for key, val in collide_list:
-            distance = self.get_location().distance_to(avoid_list[key].center)
+        for o_uuid, o_rect in collide_list:
+            distance = self.get_location().distance_to(avoid_list[o_uuid].center)
             if distance: # if distance is 0, assume this is us and skip
-                collision_radius = avoid_list[key].width/2
+                collision_radius = avoid_list[o_uuid].width
 
                 if distance < collision_radius:
+
                     # Calculate a direction vector to avoid the other entity
-                    direction = self.get_location() - avoid_list[key].center
+                    direction = self.get_location() - avoid_list[o_uuid].center
 
                     # Move away from the other entity
-                    target_velocity += direction * self._max_velocity  # Adjust strength as needed
+                    target_velocity += direction * self._max_velocity # Adjust strength as needed
 
         # Set the final velocity, ensuring it’s capped or constrained as needed
         if target_velocity.length() != 0:
-            target_velocity = target_velocity.normalize() * self._max_velocity
-        self._velocity = target_velocity
-        # logger.info(f'Entity: move_to_avoiding: {tuple(target_velocity)=}')
-        self.update_position(tuple(self._velocity))
+            target_velocity.normalize_ip()
+        if self._velocity.length() != 0:
+            self._velocity.normalize_ip()
+        self._velocity += target_velocity
+        self._velocity *= (self._max_velocity)
+        logger.debug(f'Entity:move_to_avoiding: {self._velocity.length()}')
+        self.update(dt)
                         
-    def update_position(self, offset: tuple):
-        self._sprite.rect.move(offset)
-
+    def update_position(self, offset: pg.Vector2=None):
+        if offset:
+            self._sprite.rect.move_ip(offset.x, offset.y)
+        else:
+            self._sprite.rect.move_ip(self._velocity.x, self._velocity.y)
 
     def check_collides(self, other_entity:Entity) -> tuple|None:
         mask = self.get_mask()
@@ -129,6 +136,7 @@ class Entity:
         return pg.Vector2(self._sprite.rect.centerx, self._sprite.rect.centery)
 
     def update(self, dt: float, bounds:pg.Rect=None) -> None:
+        logger.info(f'Entity:update: {self._type=}{self._velocity=}')
         self._sprite.update(self._velocity * dt)
         if bounds:
             if self._sprite.rect.left < bounds.left:
@@ -182,6 +190,7 @@ class Enemy(Entity):
     def __init__(self, location: pg.Vector2, sprite: dict = None, uuid=None, target_uuid=None, name:str=None) -> None:
         self.target = target_uuid
         super().__init__(location, sprite, uuid, name)
+        self._type = 'enemy'
 
     @staticmethod
     def from_dict(enemy: dict, sprite_list: SpriteSet, e_uuid: uuid.UUID) -> Enemy:
@@ -197,7 +206,7 @@ class Enemy(Entity):
         return new_enemy
     # def update(self, dt: float) -> None:
     #     return super().update(dt)
-    
+
     def serialize(self) -> dict:
         ret_val = super().serialize()
         ret_val['target'] = str(self.target)
@@ -218,6 +227,7 @@ class Player(Entity):
         super().__init__(location, sprite, uuid, name)
         self._color = (0,0,128,255)
         self._max_velocity = 350
+        self._type = 'player'
 
     def update(self, dt, bounds:pg.Rect) -> None:
         keys = pg.key.get_pressed()

@@ -40,8 +40,8 @@ def update(server, dt:float):
             logger.debug(f"update: Before {server.entities[e_uuid]['location']['y']=}")
             logger.debug(f"update: Before {server.entities[e_uuid]['velocity']['x']=}")
             logger.debug(f"update: Before {server.entities[e_uuid]['velocity']['y']=}")
-            server.entities[e_uuid]['location']['x'] += server.entities[e_uuid]['velocity']['x'] * dt
-            server.entities[e_uuid]['location']['y'] += server.entities[e_uuid]['velocity']['y'] * dt
+            # server.entities[e_uuid]['location']['x'] += server.entities[e_uuid]['velocity']['x'] * dt
+            # server.entities[e_uuid]['location']['y'] += server.entities[e_uuid]['velocity']['y'] * dt
             # server.entities[e_uuid]['location']['x'] = 0 if server.entities[e_uuid]['location']['x'] < 0 else server.entities[e_uuid]['location']['x']
             # server.entities[e_uuid]['location']['x'] = 1280 - server.entities[e_uuid]['location']['width'] if server.entities[e_uuid]['location']['x'] > 1280 - server.entities[e_uuid]['location']['width'] else server.entities[e_uuid]['location']['x']
             # server.entities[e_uuid]['location']['y'] = 0 if server.entities[e_uuid]['location']['y'] < 0 else server.entities[e_uuid]['location']['y']

@@ -32,6 +32,7 @@ class Scene:
         self._name = name
 
     def update(self, dt: float) -> None:
+        logger.debug(f'update: {dt=}')
         enemies = {e:self._enemies[e] for e in self._enemies if self._enemies[e].is_alive}
         enemies_rect = {e:self._enemies[e].get_rect() for e in enemies}
 
@@ -53,7 +54,9 @@ class Scene:
         was_alive = self._player.is_alive
         if enemies_rect: 
             self.collision_detection(enemies, enemies_rect)
-            [enemies[e].move_to_avoiding(self._player.get_location(), enemies_rect) for e in enemies if enemies[e].target == self.uuid]
+            [enemies[e].move_to_avoiding(self._player.get_location(), enemies_rect, dt) for e in enemies if enemies[e].target == self.uuid]
+            # [enemies[e].move_to(self._player.get_location(), dt) for e in enemies if enemies[e].target == self.uuid]
+            
         if not self._player.is_alive:
             for e in enemies: 
                 if enemies[e].target == self.uuid: 

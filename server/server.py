@@ -95,11 +95,7 @@ class WebSocketServer:
             if 'entities' in data.keys():
                 for r_uuid, remote_entity in data['entities'].items():
                     if r_uuid in self.entities.keys():
-                        logger.debug(f'before:{self.entities[r_uuid]["velocity"]}')
-                        self.entities[r_uuid]['velocity'] = remote_entity['velocity']
-                        logger.debug(f'after: {self.entities[r_uuid]["velocity"]}')
-                        logger.debug(f"{self.entities[r_uuid]['target']=} {self.entities[r_uuid]['location']=}")
-                        self.entities[r_uuid]['is_alive'] = remote_entity['is_alive']
+                        self.entities[r_uuid] = remote_entity
                     elif r_uuid in self.players.keys():
                         if not remote_entity['is_alive'] and self.players[r_uuid]['is_alive']:
                             self.remove_enemys_targeting(r_uuid)
