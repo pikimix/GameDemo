@@ -79,6 +79,7 @@ class Scene:
         for key in collision_list:
             if key in enemies and enemies[key].check_collides(self._player):
                 self._player.damage(enemies[key]._atack)
+                break
 
     def check_if_player_alive(self):
         logger.info(f'check_if_player_alive: {self._player.is_alive=}')
