@@ -157,6 +157,7 @@ class Entity:
             self._velocity.y = remote_entity['velocity']['y']
             self._facing_left = remote_entity['facing_left']
             self.is_alive = remote_entity['is_alive']
+            self._hp = remote_entity['hp']
         except Exception as e:
             logger.error(f'{e=} {remote_entity}')
         
