@@ -102,12 +102,6 @@ class Entity:
         self._velocity *= (self._max_velocity)
         logger.debug(f'Entity:move_to_avoiding: {self._velocity.length()}')
         self.update(dt)
-                        
-    def update_position(self, offset: pg.Vector2=None):
-        if offset:
-            self._sprite.rect.move_ip(offset.x, offset.y)
-        else:
-            self._sprite.rect.move_ip(self._velocity.x, self._velocity.y)
 
     def check_collides(self, other_entity:Entity) -> tuple|None:
         mask = self.get_mask()
@@ -178,7 +172,17 @@ class Entity:
             'hp' : self._hp,
             'max_hp' : self._max_hp
         }
+
+    def draw_healthbar(self, screen: pg.surface):
+        rect = pg.Rect(self.get_rect().left, self.get_rect().top -15,
+                        self.get_rect().width, 5)
+        bar = pg.Rect(self.get_rect().left, self.get_rect().top -15,
+                        ((self._hp/self._max_hp) *self.get_rect().width), 5)
+        pg.draw.rect(screen, (255,0,0,255),bar)
+        pg.draw.rect(screen, (0,0,0,255),rect,1,1)
+
     def draw(self, screen, color=(255,0,0,255)) -> None:
+        self.draw_healthbar(screen)
         self._sprite.draw(screen, flip=self._facing_left, color=color)
         if self._name:
             name = self._font.render(self._name, True, (0, 0, 0))
@@ -206,19 +210,17 @@ class Enemy(Entity):
         new_enemy.is_alive = enemy['is_alive']
         new_enemy._velocity = pg.Vector2(enemy['velocity']['x'], enemy['velocity']['y'])
         return new_enemy
-    # def update(self, dt: float) -> None:
-    #     return super().update(dt)
 
     def serialize(self) -> dict:
         ret_val = super().serialize()
         ret_val['target'] = str(self.target)
         ret_val['type'] = 'enemy'
         return ret_val
-    
+
     def net_update(self, remote_entity: dict) -> None:
         super().net_update(remote_entity)
         self.target = None if remote_entity['target'] == None else uuid.UUID(remote_entity['target'])
-    
+
     def move_to_target(self, player_position_list:list) -> None:
         for player in player_position_list:
             if player['uuid'] == self.target:
@@ -259,25 +261,10 @@ class Player(Entity):
         logger.debug(f'player:update: {self._velocity.length()}')
         super().update(dt, bounds)
 
-    def draw_healthbar(self, screen: pg.surface):
-        rect = pg.Rect(self.get_rect().left, self.get_rect().top -15,
-                        self.get_rect().width, 5)
-        bar = pg.Rect(self.get_rect().left, self.get_rect().top -15,
-                        ((self._hp/self._max_hp) *self.get_rect().width), 5)
-        pg.draw.rect(screen, (255,0,0,255),bar)
-        pg.draw.rect(screen, (0,0,0,255),rect,1,1)
-        pass
-
     def serialize(self) -> dict:
         ret_val = super().serialize()
         ret_val['type'] = 'player'
         return ret_val
     
     def draw(self, screen) -> None:
-        self.draw_healthbar(screen)
-        # name = self._font.render(self._name, True, (0, 0, 0))
-        # name_pos = self.get_location()
-        # name_pos.x -= name.get_width()/2
-        # name_pos.y += self._sprite.rect.height/2
-        # screen.blit(name, name_pos)
         super().draw(screen, color=self._color)
