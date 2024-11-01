@@ -4,6 +4,7 @@ import pygame as pg
 from math import radians
 import logging
 import uuid
+from typing import Dict
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
@@ -39,11 +40,11 @@ class Entity:
             name = entity['name']
         new_entity = Entity(loc, sprite, e_uuid, name)
         new_entity._facing_left= entity['facing_left']
+        new_entity.is_alive = entity['is_alive']
         new_entity._velocity = pg.Vector2(entity['velocity']['x'], entity['velocity']['y'])
         return new_entity
 
-    def respawn(self, location: pg.Vector2, sprite: dict=None, uuid=None) -> None:
-        self.uuid = uuid
+    def respawn(self, location: pg.Vector2, sprite: dict=None) -> None:
         self._sprite = None
         self._sprite_name = None
         if sprite:
@@ -54,8 +55,7 @@ class Entity:
             self._sprite = AnimatedSprite(None, location)
         self._facing_left = False
         self._velocity = pg.Vector2(0,0)
-        self._hp = 100
-        self._atack = 10
+        self._hp = self._max_hp
         self.is_alive = True
 
     def damage(self, damage: int) -> None:
@@ -69,31 +69,34 @@ class Entity:
             target_velocity = target_velocity.normalize() * self._max_velocity
         self._velocity = target_velocity
 
-    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: list[Entity]) -> None:
+    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: Dict[str,Entity]) -> None:
+        logger.debug(f'move_to_avoiding: Moving {self.uuid=} towards {destination=}')
         # Determine target velocity towards the player
         target_velocity = pg.Vector2(0, 0)
         target_velocity = (destination - self.get_location()) * self._max_velocity
 
+        collide_list = self.get_rect().collidedictall(avoid_list, values=True)
+        # collide_list = [k[0] for k in collide_list]
         # Check for collision with other avoid_list
-        for entity in avoid_list:
-            if entity != self:  # Avoid checking against itself
-                distance = self.get_location().distance_to(entity.get_location())
-                collision_radius = entity.get_rect().width/2
+        for key, val in collide_list:
+            distance = self.get_location().distance_to(avoid_list[key].center)
+            if distance: # if distance is 0, assume this is us and skip
+                collision_radius = avoid_list[key].width/2
 
                 if distance < collision_radius:
                     # Calculate a direction vector to avoid the other entity
-                    direction = self.get_location() - entity.get_location()
-                    if direction.length() != 0:
-                        direction.normalize_ip()  # Normalize to get a unit vector
+                    direction = self.get_location() - avoid_list[key].center
 
                     # Move away from the other entity
-                    target_velocity += direction * 100  # Adjust strength as needed
+                    target_velocity += direction * self._max_velocity  # Adjust strength as needed
 
         # Set the final velocity, ensuring it’s capped or constrained as needed
         if target_velocity.length() != 0:
             target_velocity = target_velocity.normalize() * self._max_velocity
         self._velocity = target_velocity
-
+        # logger.info(f'Entity: move_to_avoiding: {tuple(target_velocity)=}')
+        self.update_position(tuple(self._velocity))
+                        
     def update_position(self, offset: tuple):
         self._sprite.rect.move(offset)
 
@@ -141,28 +144,30 @@ class Entity:
         self._sprite.update_animation()
 
     def net_update(self, remote_entity:dict) -> None:
-        logger.debug(f'net_update: {remote_entity=}')
-        left = remote_entity['location']['x']
-        top = remote_entity['location']['y']
-        self._sprite.rect.update(left, top, self._sprite.rect.width, self._sprite.rect.height)
-        self._velocity.x = remote_entity['velocity']['x']
-        self._velocity.y = remote_entity['velocity']['y']
-        self._facing_left = remote_entity['facing_left']
-        if 'is_alive' in remote_entity.keys():
+        try:
+            logger.debug(f'net_update: {remote_entity=}')
+            left = remote_entity['location']['x']
+            top = remote_entity['location']['y']
+            self._sprite.rect.update(left, top, self._sprite.rect.width, self._sprite.rect.height)
+            self._velocity.x = remote_entity['velocity']['x']
+            self._velocity.y = remote_entity['velocity']['y']
+            self._facing_left = remote_entity['facing_left']
             self.is_alive = remote_entity['is_alive']
-        else:
-            logger.error(f'net_update: Key not found "is_alive" in received update for {remote_entity=}')
+        except Exception as e:
+            logger.error(f'{e=} {remote_entity}')
         
     def serialize(self) -> dict:
-        return {
-            'uuid': str(self.uuid),
+        return {    
             'location' : { 'x' : self._sprite.rect.left, 'y': self._sprite.rect.top,
                             'height': self._sprite.rect.height, 'width': self._sprite.rect.width},
             'velocity' : { 'x' : self._velocity.x, 'y': self._velocity.y},
             'sprite': self._sprite_name,
             'facing_left': self._facing_left,
             'name' : self._name,
-            'is_alive' : self.is_alive
+            'is_alive' : self.is_alive,
+            'max_velocity': self._max_velocity,
+            'hp' : self._hp,
+            'max_hp' : self._max_hp
         }
     def draw(self, screen, color=(255,0,0,255)) -> None:
         self._sprite.draw(screen, flip=self._facing_left, color=color)
@@ -175,41 +180,37 @@ class Entity:
 
 class Enemy(Entity):
     def __init__(self, location: pg.Vector2, sprite: dict = None, uuid=None, target_uuid=None, name:str=None) -> None:
-        self._target = target_uuid
+        self.target = target_uuid
         super().__init__(location, sprite, uuid, name)
-    
+
     @staticmethod
-    def from_dict(enemy: dict, sprite_list: SpriteSet, e_uuid, target_uuid) -> Enemy:
-        loc = pg.Vector2(enemy['location']['x'], enemy['location']['y'])
+    def from_dict(enemy: dict, sprite_list: SpriteSet, e_uuid: uuid.UUID) -> Enemy:
         sprite = None
+        loc = pg.Vector2(enemy['location']['x'], enemy['location']['y'])
         if enemy['sprite']:
             sprite = { enemy['sprite']: sprite_list.get_sprite(enemy['sprite']) }
-        new_enemy = Enemy(loc, sprite, e_uuid, target_uuid)
+        target = uuid.UUID(enemy['target']) if enemy['target'] else None
+        new_enemy = Enemy(loc, sprite, e_uuid, target)
         new_enemy._facing_left= enemy['facing_left']
+        new_enemy.is_alive = enemy['is_alive']
         new_enemy._velocity = pg.Vector2(enemy['velocity']['x'], enemy['velocity']['y'])
         return new_enemy
-    
     # def update(self, dt: float) -> None:
     #     return super().update(dt)
     
     def serialize(self) -> dict:
         ret_val = super().serialize()
-        ret_val['target'] = str(self._target)
+        ret_val['target'] = str(self.target)
         ret_val['type'] = 'enemy'
         return ret_val
     
     def net_update(self, remote_entity: dict) -> None:
-        if self._target != uuid.UUID(remote_entity['target']):
-            logger.error(f'net_update:{self._target=} != {remote_entity["target"]=}')
-        # self._target = remote_entity['target']
-        return super().net_update(remote_entity)
-
-    def update_target(self, target_uuid) -> None:
-        self._target = target_uuid
+        super().net_update(remote_entity)
+        self.target = None if remote_entity['target'] == None else uuid.UUID(remote_entity['target'])
     
     def move_to_target(self, player_position_list:list) -> None:
         for player in player_position_list:
-            if player['uuid'] == self._target:
+            if player['uuid'] == self.target:
                 super().move_to(player['position'])
 
 class Player(Entity):
@@ -254,6 +255,12 @@ class Player(Entity):
         pg.draw.rect(screen, (255,0,0,255),bar)
         pg.draw.rect(screen, (0,0,0,255),rect,1,1)
         pass
+
+    def serialize(self) -> dict:
+        ret_val = super().serialize()
+        ret_val['type'] = 'player'
+        return ret_val
+    
     def draw(self, screen) -> None:
         self.draw_healthbar(screen)
         # name = self._font.render(self._name, True, (0, 0, 0))

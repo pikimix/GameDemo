@@ -14,11 +14,28 @@ class WebSocketServer:
         self.connected_clients = {}
         self.messages = asyncio.Queue()  # Use an asyncio.Queue for safe access
         self.running = True
-        self.entities = []
-        # self.entities = [
-        #     {
-        #         'type': 'enemy',
-        #         'uuid': str(uuid.uuid4()),
+        self.entities = {}
+        for _ in range(101):
+            self.entities[str(uuid.uuid4())] = {
+                    'type': 'enemy',
+                    'location': {
+                        'x': choice([randint(0, 128), randint(1152, 1280)]), 
+                        'y': choice([randint(0, 128), randint(592, 720)]),
+                        'width' : 20,
+                        'height' : 20
+                    },
+                    'velocity': {'x': 0, 'y': 0},
+                    'sprite': None,
+                    'facing_left': False,
+                    'target': None,
+                    'is_alive': False,
+                    'hp': 100,
+                    'damage': 10
+                }
+        self.players = {}
+        # {
+        #     str(uuid.uuid4()):{
+        #         'type': 'player',
         #         'location': {
         #             'x': choice([randint(0, 128), randint(1152, 1280)]), 
         #             'y': choice([randint(0, 128), randint(592, 720)]),
@@ -28,12 +45,17 @@ class WebSocketServer:
         #         'velocity': {'x': 0, 'y': 0},
         #         'sprite': None,
         #         'facing_left': False,
-        #         'target': None
+        #         'target': None,
+        #         'hp' : 100,
+        #         'is_alive': False
         #     }
-        # ]
+        # }
         self.last_message_time = asyncio.get_event_loop().time()  # Track last message time
         self.update_interval = 0.01  # Update interval in seconds
         self.scores = {}
+
+    async def send_update(self):
+        await self.broadcast(None, {"entities": {**self.entities, **self.players}})
 
     async def handler(self, websocket, path):
         # Wait for the initial message containing the UUID
@@ -50,20 +72,6 @@ class WebSocketServer:
             self.connected_clients[client_id] = websocket
             logger.info(f"Client connected: {client_id}")
             # add New enemy targeting the new player
-            # self.entities.append({
-            #     'type': 'enemy',
-            #     'uuid': str(uuid.uuid4()),
-            #     'location': {
-            #         'x': choice([randint(0, 128), randint(1152, 1280)]), 
-            #         'y': choice([randint(0, 128), randint(592, 720)]),
-            #         'width' : 20,
-            #         'height' : 20
-            #     },
-            #     'velocity': {'x': 0, 'y': 0},
-            #     'sprite': None,
-            #     'facing_left': False,
-            #     'target': client_id
-            # })
             self.spawn_enemies(client_id, 1)
 
             # Broadcast the combined message to all connected clients
@@ -86,44 +94,37 @@ class WebSocketServer:
         if isinstance(data, dict):
             if 'entities' in data.keys():
                 combined_payload = {}
-                for r_entity in data['entities']:
-                    found = False
-                    remove_enemy = None
-                    spawn_enemy = None
-                    for idx, entity in enumerate(self.entities):
-                        if r_entity['uuid'] == str(entity['uuid']):
-                            if r_entity['type'] == 'enemy':
-                                self.entities[idx]['velocity'] = r_entity['velocity']
-                                self.entities[idx]['is_alive'] = r_entity['is_alive']
-                            else:
-                                if r_entity['type'] == 'player':
-                                    if not r_entity['is_alive'] and self.entities[idx]['is_alive']:
-                                        remove_enemy = r_entity['uuid']
-                                    elif r_entity['is_alive'] and not self.entities[idx]['is_alive']:
-                                        logger.info('handle_message: Should be trying to spawn enemies')
-                                        spawn_enemy = r_entity['uuid']
-                                self.entities[idx] = r_entity
-                            found = True
-                    if not found:
-                        logger.error(f'handle_message: pretty sure there should never be a missing entity, but this one was {r_entity}')
-                        self.entities.append(r_entity)
-                    logger.debug(f'handle_message: {remove_enemy=} {spawn_enemy=}')
-                    if remove_enemy:
-                        removals = self.remove_enemys_targeting(remove_enemy)
-                        combined_payload['remove'] = removals
-                    if spawn_enemy:
-                        self.spawn_enemies(spawn_enemy, 1)
+                for r_uuid, remote_entity in data['entities'].items():
+                    if r_uuid in self.entities.keys():
+                        logger.debug(f'before:{self.entities[r_uuid]["velocity"]}')
+                        self.entities[r_uuid]['velocity'] = remote_entity['velocity']
+                        logger.debug(f'after: {self.entities[r_uuid]["velocity"]}')
+                        logger.debug(f"{self.entities[r_uuid]['target']=} {self.entities[r_uuid]['location']=}")
+                        self.entities[r_uuid]['is_alive'] = remote_entity['is_alive']
+                    elif r_uuid in self.players.keys():
+                        if not remote_entity['is_alive'] and self.players[r_uuid]['is_alive']:
+                            self.remove_enemys_targeting(r_uuid)
+                        elif remote_entity['is_alive'] and not self.players[r_uuid]['is_alive']:
+                            self.spawn_enemies(r_uuid,1)
+                        self.players[r_uuid] = remote_entity
+                    else:
+                        try:
+                            if remote_entity['type'] == 'enemy':
+                                self.entities[r_uuid] = remote_entity
+                            elif remote_entity['type'] == 'player':
+                                self.players[r_uuid] = remote_entity
+                        except Exception as e:
+                            logger.info(f'\n\n{r_uuid=} {remote_entity=}\n\n')
 
-                combined_payload["entities"] = self.entities
+                combined_payload["entities"] = {**self.entities, **self.players}
                 
-                logger.debug(f'handle_message: {combined_payload=}')
+                # logger.debug(f'handle_message: {combined_payload=}')
                 # Broadcast the combined message to all connected clients
                 # await self.broadcast(client_id, combined_payload)
-                await self.broadcast(None, combined_payload)
+                # await self.broadcast(None, combined_payload)
             if 'score' in data.keys():
                 if data['uuid'] in self.scores.keys():
-                    logger.info(self.scores[data['uuid']])
-                    # for breakpoint in [1000, 2500, 5000, 10000]:
+                    logger.debug(self.scores[data['uuid']])
                     if (self.scores[data['uuid']]['current_score'] // 2500) < (data['score'] // 2500):
                         logger.info(f'handle_message: Score crossed breakpoint for {data["name"]}')
                         self.spawn_enemies(data['uuid'],1)
@@ -147,22 +148,18 @@ class WebSocketServer:
                     logger.error(f"Error sending message to {client_id}: {e}")
 
     def spawn_enemies(self, target: str, number_to_spawn: int):
-        logger.debug(f'spawn_enemies: {target=} {number_to_spawn=}')
-        self.entities += [{
-                'type': 'enemy',
-                'uuid': str(uuid.uuid4()),
-                'location': {
-                    'x': choice([randint(0, 128), randint(1152, 1280)]), 
-                    'y': choice([randint(0, 128), randint(592, 720)]),
-                    'width' : 20,
-                    'height' : 20
-                },
-                'velocity': {'x': 0, 'y': 0},
-                'sprite': None,
-                'facing_left': False,
-                'target': target,
-                'is_alive': True
-            } for _ in range(number_to_spawn)]
+        logger.info(f'spawn_enemies: {target=} {number_to_spawn=}')
+        spawned = 0
+        for e_uuid, entity in self.entities.items():
+            if not entity['is_alive'] and spawned < number_to_spawn:
+                logger.info(f'spawn_enemy: Spawning {e_uuid=} to target {target=}')
+                entity['is_alive'] = True
+                entity['target'] = target
+                entity['location']['x'] = choice([randint(0, 128), randint(1152, 1280)])
+                entity['location']['y'] = choice([randint(0, 128), randint(592, 720)])
+                spawned += 1
+        if not spawned:
+            logger.error('spawn_enemys: No Enemies to Spawn')
 
     def remove_entity(self, entity_id):
         logger.info(f'remove_entity: Received removal for {entity_id}')
@@ -173,23 +170,21 @@ class WebSocketServer:
         if entity_id in self.scores.keys():
             logger.debug(f'remove_entity: Removing from scores')
             del self.scores[entity_id]
-        entity_idx = next((idx for idx, client in enumerate(self.entities) if client['uuid'] == entity_id), None)
-        if entity_idx:
-            logger.debug('remove_entity: Removing from current entities list.')
-            self.entities.pop(entity_idx)
-        removals = self.remove_enemys_targeting(entity_id)
-        # append entity we have removed to list of enemys removed
-        removals.append(entity_id)
-        return removals
+        if entity_id in self.entities.keys():
+            self.entities[entity_id]['is_alive'] = False
+        if entity_id in self.players.keys():
+            self.players[entity_id]['is_alive'] = False
+        self.remove_enemys_targeting(entity_id)
+
 
     def remove_enemys_targeting(self, entity_id:str):
         logger.debug(f'remove_enemys_targeting: Removing enemies targeting {entity_id}')
-        enemy_targets = [idx for idx, entity in enumerate(self.entities) if entity['type'] == 'enemy' and entity['target'] == entity_id]
-        removals = []
-        for idx in sorted(enemy_targets, reverse=True):
-            # remove from list and broadcast removal to remaining clients
-            removals.append(self.entities.pop(idx)['uuid'])
-        return removals
+        for e_uuid, entity in self.entities.items():
+            if entity['target'] == entity_id:
+                logger.info(f'remove_enemys_targeting: killing {e_uuid=} which was targeting {entity_id=}')
+                entity['is_alive'] = False
+                entity['target'] = None
+        
     
     def run(self, update_function=None, host='localhost', port=8765):
         start_server = websockets.serve(self.handler, host, port)

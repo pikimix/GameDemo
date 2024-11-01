@@ -19,14 +19,8 @@ class Scene:
         self._ws_client.set_message_handler(self.handle_message)
         self._ws_client.start()
         self._screen = pg.display.set_mode((1280, 720))
-        self._entities = []
-        self._DEBUG = debug
-        if self._DEBUG:
-            # create 5 random entities if we are in debug mode
-            for _ in range(6):
-                loc = pg.Vector2(randint(0,self._screen.get_width()),
-                    randint(0, self._screen.get_height()))
-                self._entities.append(Enemy(loc))
+        self._other_players: dict[str, Player] = {}
+        self._enemies: dict[str, Enemy] = {}
         self._sprite_list = SpriteSet({'player': 'assets/player.png'})
         self._player = Player(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
                 {'player': self._sprite_list.get_sprite('player')}, self._uuid, name)
@@ -38,47 +32,74 @@ class Scene:
         self._name = name
 
     def update(self, dt: float) -> None:
-        enemies = [e for e in self._entities if type(e) == Enemy]
-        players = [e.update_animation() for e in self._entities if type(e) == Entity]
-        payload = {'uuid':str(self._uuid), 'name': self._name, 'entities':[]}
+        enemies = {e:self._enemies[e] for e in self._enemies if self._enemies[e].is_alive}
+        enemies_rect = {e:self._enemies[e].get_rect() for e in enemies}
+
+        # update animation for remote players
+        [self._other_players[e].update_animation() for e in self._other_players ]
+
+        payload = {'uuid':str(self._uuid), 'name': self._name, 'entities':{}}
         if not self._player.is_alive:
             keys = pg.key.get_pressed()
             if keys[pg.K_SPACE]:
                 self._score = 0
                 self._last_start = pg.time.get_ticks()
                 self._player.respawn(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
-                {'player': self._sprite_list.get_sprite('player')}, self._uuid)
+                {'player': self._sprite_list.get_sprite('player')})
         else:
             self._score = pg.time.get_ticks() - self._last_start
             payload['score'] = self._score
-        self._player.update(dt, self._screen.get_rect())
-        enemy_update = []
-        for enemy in enemies:
-            collides = enemy.check_collides(self._player)
-            if collides:
-                was_alive = self._player.is_alive
-                self._player.damage(enemy._atack)
-                if not self._player.is_alive and was_alive:
-                    self._score = pg.time.get_ticks() - self._last_start
-                    payload['score'] = self._score
-            if enemy._target == self._uuid:
-                enemy.move_to_avoiding(self._player.get_location(), enemies)
-                enemy_update.append(enemy)
-        for enemy in enemy_update:
-            payload['entities'].append(enemy.serialize())
+            self._player.update(dt, self._screen.get_rect())
+        was_alive = self._player.is_alive
+        if enemies_rect: 
+            self.collision_detection(enemies, enemies_rect)
+            [enemies[e].move_to_avoiding(self._player.get_location(), enemies_rect) for e in enemies if enemies[e].target == self._uuid]
+        if not self._player.is_alive:
+            for e in enemies: 
+                if enemies[e].target == self._uuid: 
+                    enemies[e].is_alive = False
+                    enemies[e].target = None
+            if was_alive:
+                self._score = pg.time.get_ticks() - self._last_start
+                payload['score'] = self._score
 
-        send_data = self._player.serialize()
-        send_data['type'] = 'player'
-        send_data['timestamp'] = pg.time.get_ticks()
-        logger.debug(send_data)
-        payload['entities'].append(send_data)
+        payload['entities'] = {e: enemies[e].serialize() for e in enemies if enemies[e].target == self._uuid}
+        # add player to payload
+        payload['entities'][str(self._player.uuid)] = self._player.serialize()
         
         if self._ws_client.running:
+            # logger.info(f'\n\n{json.dumps(payload)=}\n\n')
             self._ws_client.send(payload)
+    def collision_detection(self, enemies:dict[str, Enemy], enemies_rect:dict[str, pg.Rect]):
+        collision_list = self._player.get_rect().collidedictall(enemies_rect, values=True)
+        collision_list = [k[0] for k in collision_list]
+        for key in collision_list:
+            if key in enemies and enemies[key].check_collides(self._player):
+                self._player.damage(enemies[key]._atack)
 
     def check_if_player_alive(self):
         logger.info(f'check_if_player_alive: {self._player.is_alive=}')
         return self._player.is_alive
+
+    def update_other_players(self, r_uuid_text, entity):
+        logger.debug(f'{r_uuid_text=} {entity["is_alive"]=}')
+        try:
+            if r_uuid_text in self._other_players:
+                self._other_players[r_uuid_text].net_update(entity)
+            else:
+                self._other_players[r_uuid_text] = Entity.from_dict(entity, self._sprite_list, uuid.UUID(r_uuid_text))
+        except Exception as e:
+            logger.error(f'update_other_players:add:{e=} : {r_uuid_text=} {entity=}')
+    def update_enemy(self, r_uuid_text, entity):
+        r_uuid = uuid.UUID(r_uuid_text)
+        try:
+            if r_uuid_text in self._enemies:
+                self._enemies[r_uuid_text].net_update(entity)
+            else:
+                enemy = Enemy.from_dict(entity, self._sprite_list, r_uuid)
+                self._enemies[r_uuid_text] = enemy
+        except Exception as e:
+            logger.error(f'update_enemy:add:{e=} : {r_uuid_text=} {r_uuid=} {entity=}')
 
     def handle_message(self, message):
         # Handle received message from the server
@@ -86,37 +107,13 @@ class Scene:
         logger.debug(f'handle_message: Received {len(message.encode("utf-8"))} bytes')
         data = json.loads(message)
         if 'entities' in data.keys():
-            for remote_entity in data['entities']:
-                remote_uuid = uuid.UUID(remote_entity['uuid'])
-                if remote_uuid != self._uuid:
-                    found = False
-                    for entity in self._entities:
-                        if remote_uuid == entity.uuid:
-                            # if remote_entity['type'] == 'player' or \
-                            #     (remote_entity['type'] == 'enemy' and remote_entity['target'] != str(self._uuid)):
-                            entity.net_update(remote_entity)
-                            found = True
-                    if not found:
-                        if remote_entity['type'] == 'player':
-                            new_entity = Entity.from_dict(remote_entity, self._sprite_list, remote_uuid)
-                        elif remote_entity['type'] == 'enemy':
-                            target = uuid.UUID(remote_entity['target']) if remote_entity['target'] else None
-                            new_entity = Enemy.from_dict(remote_entity, self._sprite_list, remote_uuid, target)
-                        self._entities.append(new_entity)
+            for r_uuid, remote_entity in data['entities'].items():
+                if r_uuid != str(self._uuid):
+                    if remote_entity['type'] == 'player': self.update_other_players(r_uuid, remote_entity)
+                    elif remote_entity['type'] == 'enemy': self.update_enemy(r_uuid, remote_entity)
+                    else: logger.error(f"could not process: {r_uuid=} {remote_entity=}")
         if 'remove' in data.keys():
-            logger.info('handle_message:Received remove message')
-            if isinstance(data['remove'], list):
-                for r_uuid in data['remove']:
-                    remove_idx = next((idx for idx, entity in enumerate(self._entities) if entity.uuid == uuid.UUID(r_uuid)), None)
-                    if isinstance(remove_idx, int):
-                        logger.info(f'handle_message:Found {r_uuid}')
-                        self._entities.pop(remove_idx)
-                    else:
-                        logger.info(f'handle_message:Could not find {r_uuid}')
-                if r_uuid in self._leader_board.keys():
-                    del self._leader_board[r_uuid]
-            else:
-                logger.error(f'handle_message: Received incorrectly formatted removal message : {data=}')
+            logger.error('handle_message:Received remove message - This should no longer happen')
         if 'scores' in data.keys():
             self._leader_board = data['scores']
 
@@ -125,12 +122,13 @@ class Scene:
 
     def draw(self):
         self._screen.fill("forestgreen")
-        for entity in self._entities:
-            if entity.is_alive:
-                if type(entity) == Enemy:
-                    entity.draw(self._screen)
-                else:
-                    entity.draw(self._screen, (255,255,0,255))
+        for enemy in self._enemies:
+            if self._enemies[enemy].is_alive:
+                self._enemies[enemy].draw(self._screen)
+        for player in self._other_players:
+            logger.debug(f"{player=} {self._other_players[player].is_alive=}")
+            if self._other_players[player].is_alive:
+                self._other_players[player].draw(self._screen, (255,255,0,255))
         self.draw_scoreboard()
         if self._player.is_alive:
             self._player.draw(self._screen)
@@ -154,10 +152,9 @@ class Scene:
     def draw_scoreboard(self):
         score_header = self._font.render(f'All Player Top Scores', True, [0,0,0])
         score_lines = [score_header]
-        line_height = 0
+        line_height = score_header.get_height()
         for p_uuid, board in self._leader_board.items():
             line = self._font.render(f'{board["name"]}: {board["score"]}', True, [0,0,0])
-            line_height = line.get_height()
             score_lines.append(line)
         for idx, line in enumerate(score_lines):
             self._screen.blit(
