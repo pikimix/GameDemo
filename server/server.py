@@ -63,13 +63,13 @@ class WebSocketServer:
             initial_message = await websocket.recv()
             data = json.loads(initial_message)
             client_id = data.get("uuid")
-
+            client_offset = asyncio.get_event_loop().time() - (data.get('time')/1000)
             if not client_id:
                 logger.error("No UUID provided by client. Closing connection.")
                 await websocket.close()
                 return
 
-            self.connected_clients[client_id] = websocket
+            self.connected_clients[client_id] = [websocket, client_offset]
             logger.info(f"Client connected: {client_id}")
             # add New enemy targeting the new player
             self.spawn_enemies(client_id, 1)
@@ -130,13 +130,16 @@ class WebSocketServer:
 
     async def broadcast(self, sender_id, message):
         logger.debug(f'Broadcast Message: {message=}')
-        for client_id, websocket in self.connected_clients.items():
-            if client_id != sender_id and websocket:  # Don't send the message back to the sender
-                try:
-                    await websocket.send(json.dumps(message))
-                    logger.debug(f"Sent message to {client_id}: {message}")
-                except Exception as e:
-                    logger.error(f"Error sending message to {client_id}: {e}")
+        for client_id, lst in self.connected_clients.items():
+            if lst:
+                websocket, offset = lst
+                message['offset'] = offset
+                if client_id != sender_id and websocket:  # Don't send the message back to the sender
+                    try:
+                        await websocket.send(json.dumps(message))
+                        logger.debug(f"Sent message to {client_id}: {message}")
+                    except Exception as e:
+                        logger.error(f"Error sending message to {client_id}: {e}")
 
     def spawn_enemies(self, target: str, number_to_spawn: int):
         logger.info(f'spawn_enemies: {target=} {number_to_spawn=}')
@@ -195,7 +198,8 @@ class WebSocketServer:
     async def shutdown(self):
         # Close all connections gracefully
         logger.info("Closing all client connections...")
-        for client_id, websocket in self.connected_clients.items():
+        for client_id, lst in self.connected_clients.items():
+            websocket, offset = lst
             if websocket:
                 await websocket.close()
                 logger.info(f"Closed connection for client: {client_id}")
