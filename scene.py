@@ -37,14 +37,10 @@ class Scene:
         logger.debug(f'update: {dt=}')
         enemies = {e:self._enemies[e] for e in self._enemies if self._enemies[e].is_alive}
         enemies_rect = {e:self._enemies[e].get_rect() for e in enemies}
-        closest = None
-        if enemies:
-            closest = min([e for e in enemies], \
-                            key=lambda e: self._player.get_location().distance_to(enemies[e].get_location()))
-        logger.debug(f'{closest=}')
-        if closest:
-            self._player.attack(enemies[closest].get_location(), dt, self._current_ticks)
 
+        self.player_attack(enemies, dt)
+
+        attacks = self._player.attack_particles
         # update animation for remote players
         [self._other_players[e].update_animation() for e in self._other_players ]
 
@@ -83,12 +79,21 @@ class Scene:
             # logger.info(f'\n\n{json.dumps(payload)=}\n\n')
             self._ws_client.send(payload)
 
+    def player_attack(self, enemies, dt):
+        closest = None
+        if enemies:
+            closest = min([e for e in enemies], \
+                            key=lambda e: self._player.get_location().distance_to(enemies[e].get_location()))
+        logger.debug(f'{closest=}')
+        if closest:
+            self._player.attack(enemies[closest].get_location(), dt, self._current_ticks)
+
     def collision_detection(self, enemies:dict[str, Enemy], enemies_rect:dict[str, pg.Rect]):
         collision_list = self._player.get_rect().collidedictall(enemies_rect, values=True)
         collision_list = [k[0] for k in collision_list]
         for key in collision_list:
             if key in enemies and enemies[key].check_collides(self._player):
-                self._player.damage(enemies[key]._atack, enemies[key]._velocity)
+                self._player.damage(enemies[key].attack_power, enemies[key]._velocity)
                 break
 
     def check_if_player_alive(self):

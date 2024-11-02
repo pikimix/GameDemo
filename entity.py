@@ -30,7 +30,7 @@ class Entity:
         self._max_velocity = 400
         self._hp = 100
         self._max_hp = 100
-        self._atack = 25
+        self.attack_power = 25
         self.is_alive = True
         self._name = name
         self._type = 'entity'
@@ -251,7 +251,7 @@ class Player(Entity):
         self._color = (0,0,128,255)
         self._max_velocity = 350
         self._type = 'player'
-        self._attacks: dict[str,Particle] = {}
+        self.attack_particles: dict[str,Particle] = {}
         self._last_attack = 0
         self._attack_timer = 0
         self._next_attack = 1000
@@ -283,16 +283,16 @@ class Player(Entity):
                 self._velocity = target_velocity
         logger.debug(f'player:update: {self._velocity.length()}')
         super().update(dt, bounds)
-        completes = [a for a in self._attacks if self._attacks[a].complete]
+        completes = [a for a in self.attack_particles if self.attack_particles[a].complete]
         for c in completes:
-            del self._attacks[c]
-        [self._attacks[a].update(dt) for a in self._attacks]
+            del self.attack_particles[c]
+        [self.attack_particles[a].update(dt) for a in self.attack_particles]
 
     def attack(self, closest_point:pg.Vector2, dt:float, ticks:float ):
         self._attack_timer += (dt*1000)
         if self._last_attack + self._attack_timer >= self._last_attack + self._next_attack:
             ptcl_uuid = str(uuid.uuid4())
-            self._attacks[ptcl_uuid] = Particle(ticks, self.get_location(), closest_point - self.get_location())
+            self.attack_particles[ptcl_uuid] = Particle(ticks, self.get_location(), closest_point - self.get_location())
             self._last_attack = ticks
             self._attack_timer = 0
 
@@ -302,6 +302,6 @@ class Player(Entity):
         return ret_val
     
     def draw(self, screen) -> None:
-        for _, particle in self._attacks.items():
+        for _, particle in self.attack_particles.items():
             if not particle.complete: particle.draw(screen)
         super().draw(screen, color=self._color)
