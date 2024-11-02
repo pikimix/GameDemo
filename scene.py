@@ -32,6 +32,7 @@ class Scene:
         self._name = name
 
     def update(self, dt: float) -> None:
+        ticks = pg.time.get_ticks()
         logger.debug(f'update: {dt=}')
         enemies = {e:self._enemies[e] for e in self._enemies if self._enemies[e].is_alive}
         enemies_rect = {e:self._enemies[e].get_rect() for e in enemies}
@@ -39,16 +40,16 @@ class Scene:
         # update animation for remote players
         [self._other_players[e].update_animation() for e in self._other_players ]
 
-        payload = {'uuid':str(self.uuid), 'name': self._name, 'entities':{}}
+        payload = {'uuid':str(self.uuid), 'name': self._name, 'entities':{}, 'time': ticks }
         if not self._player.is_alive:
             keys = pg.key.get_pressed()
             if keys[pg.K_SPACE]:
                 self._score = 0
-                self._last_start = pg.time.get_ticks()
+                self._last_start = ticks
                 self._player.respawn(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
                 {'player': self._sprite_list.get_sprite('player')})
         else:
-            self._score = pg.time.get_ticks() - self._last_start
+            self._score = ticks - self._last_start
             payload['score'] = self._score
             self._player.update(dt, self._screen.get_rect())
         was_alive = self._player.is_alive
@@ -63,7 +64,7 @@ class Scene:
                     enemies[e].is_alive = False
                     enemies[e].target = None
             if was_alive:
-                self._score = pg.time.get_ticks() - self._last_start
+                self._score = ticks - self._last_start
                 payload['score'] = self._score
 
         payload['entities'] = {e: enemies[e].serialize() for e in enemies if enemies[e].target == self.uuid}
