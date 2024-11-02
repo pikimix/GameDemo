@@ -19,6 +19,7 @@ async def update_entities(server :WebSocketServer):
     last_update_time = 0
     while server.running:
         current_time = asyncio.get_event_loop().time()
+        logger.debug(f"{(current_time - last_update_time)=} {server.update_interval}")
         if current_time - last_update_time > server.update_interval:
             dt = current_time - last_update_time
             logger.debug("Running update")
