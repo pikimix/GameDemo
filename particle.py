@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 class Particle:
-    def __init__(self, start_time:float, origin:pg.Vector2, direction:pg.Vector2, speed:int=600, lifetime:float=1000) -> None:
+    def __init__(self, start_time:float, origin:pg.Vector2, direction:pg.Vector2, speed:int=600, lifetime:float=1000, type='particle') -> None:
         self._origin = origin
         self._direction = direction.normalize()
         self._speed = speed
@@ -16,6 +16,7 @@ class Particle:
         self._start_time = start_time
         self._time_alive = 0
         self._sprite = AnimatedSprite(None, origin, radius=5)
+        self._type = type
         self.new = True
         self.complete = False
 
@@ -26,7 +27,8 @@ class Particle:
             particle['origin'],
             particle['direction'],
             particle['speed'],
-            particle['lifetime']
+            particle['lifetime'],
+            particle['type']
         )
         # Chances are the particle was created before we received it
         # Move it to its current location
@@ -37,6 +39,16 @@ class Particle:
         new_particle.check_lifetime(dt)
         return new_particle
     
+    def serialize(self):
+        return {
+            'start_time': self._start_time,
+            'origin': self._origin,
+            'direction': self._direction,
+            'speed': self._speed,
+            'lifetime': self._lifetime,
+            'type': self._type
+        }
+
     def get_rect(self):
         return self._sprite.rect
 
