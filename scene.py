@@ -40,7 +40,7 @@ class Scene:
         # update animation for remote players
         [self._other_players[e].update_animation() for e in self._other_players ]
 
-        payload = {'uuid':str(self.uuid), 'name': self._name, 'entities':{}, 'time': ticks }
+        payload = {'uuid':str(self.uuid), 'name': self._name, 'entities':{}, 'time': ticks}
         if not self._player.is_alive:
             keys = pg.key.get_pressed()
             if keys[pg.K_SPACE]:
@@ -79,7 +79,7 @@ class Scene:
         collision_list = [k[0] for k in collision_list]
         for key in collision_list:
             if key in enemies and enemies[key].check_collides(self._player):
-                self._player.damage(enemies[key]._atack, enemies[key].get_location())
+                self._player.damage(enemies[key]._atack, enemies[key]._velocity)
                 break
 
     def check_if_player_alive(self):
