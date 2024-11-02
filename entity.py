@@ -66,6 +66,7 @@ class Entity:
     def damage(self, damage: int, velocity: pg.Vector2=None) -> None:
         self._hp -= damage
         if self._hp <= 0:
+            self._innertia_scaler = 0
             self.is_alive = False
         elif velocity:
             self._innertia_vector = velocity.normalize()
