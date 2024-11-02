@@ -137,7 +137,7 @@ class Entity:
         return pg.Vector2(self._sprite.rect.centerx, self._sprite.rect.centery)
 
     def update(self, dt: float, bounds:pg.Rect=None) -> None:
-        logger.info(f'Entity:update: {self._type=}{self._velocity=}')
+        logger.debug(f'Entity:update: {self._type=}{self._velocity=}')
         if self._innertia_scaler>0:
             inertia = self._innertia_vector * self._max_velocity * self._innertia_scaler
             inertia += self._velocity
