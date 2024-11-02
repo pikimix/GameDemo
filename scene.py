@@ -30,9 +30,10 @@ class Scene:
         #{'90565d97-c0c2-411c-9626-ed19874c4110': {'name': 'player1', 'score': 2899}, 'd8016dfb-6a2b-40a6-b2bd-1f338f94e2ca': {'name': 'player2', 'score': 953}}
         self._last_start = 0
         self._name = name
+        self._current_ticks = 0
 
     def update(self, dt: float) -> None:
-        ticks = pg.time.get_ticks()
+        self._current_ticks = pg.time.get_ticks()
         logger.debug(f'update: {dt=}')
         enemies = {e:self._enemies[e] for e in self._enemies if self._enemies[e].is_alive}
         enemies_rect = {e:self._enemies[e].get_rect() for e in enemies}
@@ -40,16 +41,16 @@ class Scene:
         # update animation for remote players
         [self._other_players[e].update_animation() for e in self._other_players ]
 
-        payload = {'uuid':str(self.uuid), 'name': self._name, 'entities':{}, 'time': ticks}
+        payload = {'uuid':str(self.uuid), 'name': self._name, 'entities':{}, 'time': self._current_ticks}
         if not self._player.is_alive:
             keys = pg.key.get_pressed()
             if keys[pg.K_SPACE]:
                 self._score = 0
-                self._last_start = ticks
+                self._last_start = self._current_ticks
                 self._player.respawn(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
                 {'player': self._sprite_list.get_sprite('player')})
         else:
-            self._score = ticks - self._last_start
+            self._score = self._current_ticks - self._last_start
             payload['score'] = self._score
             self._player.update(dt, self._screen.get_rect())
         was_alive = self._player.is_alive
@@ -64,7 +65,7 @@ class Scene:
                     enemies[e].is_alive = False
                     enemies[e].target = None
             if was_alive:
-                self._score = ticks - self._last_start
+                self._score = self._current_ticks - self._last_start
                 payload['score'] = self._score
 
         payload['entities'] = {e: enemies[e].serialize() for e in enemies if enemies[e].target == self.uuid}
@@ -137,7 +138,7 @@ class Scene:
         self.draw_scoreboard()
         if self._player.is_alive:
             self._player.draw(self._screen)
-            score = self._score if self._score else pg.time.get_ticks() - self._last_start
+            score = self._score if self._score else self._current_ticks - self._last_start
             text_surface = self._font.render(f'Current Score: {score}', True, (0, 0, 0))
             self._screen.blit(text_surface, (0,0))
         else:
