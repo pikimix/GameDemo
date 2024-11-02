@@ -113,12 +113,15 @@ class Scene:
         r_uuid = uuid.UUID(r_uuid_text)
         try:
             if r_uuid_text in self._enemies:
-                self._enemies[r_uuid_text].net_update(entity)
+                if self._enemies[r_uuid_text].target == self.uuid:
+                    self._enemies[r_uuid_text].is_alive = entity['is_alive']
+                else:
+                    self._enemies[r_uuid_text].net_update(entity)
             else:
                 enemy = Enemy.from_dict(entity, self._sprite_list, r_uuid)
                 self._enemies[r_uuid_text] = enemy
         except Exception as e:
-            logger.error(f'update_enemy:add:{e=} : {r_uuid_text=} {r_uuid=} {entity=}')
+            logger.error(f'update_enemy:{e=} : {r_uuid_text=} {r_uuid=} {entity=}')
 
     def handle_message(self, message):
         # Handle received message from the server
