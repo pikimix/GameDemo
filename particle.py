@@ -14,6 +14,7 @@ class Particle:
         self._sprite = AnimatedSprite(None, origin)
         self.new = True
         self.complete = False
+
     @staticmethod
     def from_dict(particle:dict, current_tick:float) -> Particle:
         new_particle = Particle(
