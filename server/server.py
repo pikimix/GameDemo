@@ -199,10 +199,11 @@ class WebSocketServer:
         # Close all connections gracefully
         logger.info("Closing all client connections...")
         for client_id, lst in self.connected_clients.items():
-            websocket, offset = lst
-            if websocket:
-                await websocket.close()
-                logger.info(f"Closed connection for client: {client_id}")
+            if isinstance(lst, list):
+                websocket, offset = lst
+                if websocket:
+                    await websocket.close()
+                    logger.info(f"Closed connection for client: {client_id}")
 
 if __name__ == "__main__":
     server = WebSocketServer()
