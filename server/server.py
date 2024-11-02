@@ -93,14 +93,9 @@ class WebSocketServer:
         data = json.loads(message)
         if isinstance(data, dict):
             if 'entities' in data.keys():
-                combined_payload = {}
                 for r_uuid, remote_entity in data['entities'].items():
                     if r_uuid in self.entities.keys():
-                        logger.debug(f'before:{self.entities[r_uuid]["velocity"]}')
-                        self.entities[r_uuid]['velocity'] = remote_entity['velocity']
-                        logger.debug(f'after: {self.entities[r_uuid]["velocity"]}')
-                        logger.debug(f"{self.entities[r_uuid]['target']=} {self.entities[r_uuid]['location']=}")
-                        self.entities[r_uuid]['is_alive'] = remote_entity['is_alive']
+                        self.entities[r_uuid] = remote_entity
                     elif r_uuid in self.players.keys():
                         if not remote_entity['is_alive'] and self.players[r_uuid]['is_alive']:
                             self.remove_enemys_targeting(r_uuid)
@@ -116,12 +111,6 @@ class WebSocketServer:
                         except Exception as e:
                             logger.info(f'\n\n{r_uuid=} {remote_entity=}\n\n')
 
-                combined_payload["entities"] = {**self.entities, **self.players}
-                
-                # logger.debug(f'handle_message: {combined_payload=}')
-                # Broadcast the combined message to all connected clients
-                # await self.broadcast(client_id, combined_payload)
-                # await self.broadcast(None, combined_payload)
             if 'score' in data.keys():
                 if data['uuid'] in self.scores.keys():
                     logger.debug(self.scores[data['uuid']])
@@ -132,6 +121,8 @@ class WebSocketServer:
                     if data['score'] > self.scores[data['uuid']]['score']:
                         self.scores[data['uuid']] = {'name': data['name'], 'score': data['score'], 'current_score': data['score']}
                         logger.debug(f'Set score for {data["uuid"]} to {self.scores[data["uuid"]]}')
+                    elif data['name'] != self.scores[data['uuid']]['name']:
+                        self.scores[data['uuid']]['name'] = data['name']
                 else:
                     self.scores[data['uuid']] = {'name': data['name'], 'score': data['score'], 'current_score': data['score']}
                     logger.debug(f'Set score for {data["uuid"]} to {self.scores[data["uuid"]]}')
@@ -140,7 +131,7 @@ class WebSocketServer:
     async def broadcast(self, sender_id, message):
         logger.debug(f'Broadcast Message: {message=}')
         for client_id, websocket in self.connected_clients.items():
-            if client_id != sender_id:  # Don't send the message back to the sender
+            if client_id != sender_id and websocket:  # Don't send the message back to the sender
                 try:
                     await websocket.send(json.dumps(message))
                     logger.debug(f"Sent message to {client_id}: {message}")
@@ -166,10 +157,7 @@ class WebSocketServer:
         if entity_id in self.connected_clients:
             logger.info(f'remove_entity: Received disconnect from {entity_id}')
             logger.debug(f'remove_entity: Removing from connected clients')
-            del self.connected_clients[entity_id]
-        if entity_id in self.scores.keys():
-            logger.debug(f'remove_entity: Removing from scores')
-            del self.scores[entity_id]
+            self.connected_clients[entity_id] = None
         if entity_id in self.entities.keys():
             self.entities[entity_id]['is_alive'] = False
         if entity_id in self.players.keys():
@@ -208,8 +196,9 @@ class WebSocketServer:
         # Close all connections gracefully
         logger.info("Closing all client connections...")
         for client_id, websocket in self.connected_clients.items():
-            await websocket.close()
-            logger.info(f"Closed connection for client: {client_id}")
+            if websocket:
+                await websocket.close()
+                logger.info(f"Closed connection for client: {client_id}")
 
 if __name__ == "__main__":
     server = WebSocketServer()
