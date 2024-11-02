@@ -3,9 +3,12 @@ from sprite_sheet import AnimatedSprite, SpriteSet
 import pygame as pg
 from math import radians
 from random import randint
+
 import logging
 import uuid
-from typing import Dict
+
+from particle import Particle
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
@@ -79,7 +82,7 @@ class Entity:
             target_velocity = target_velocity.normalize() * self._max_velocity
         self._velocity = target_velocity
 
-    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: Dict[str,Entity], dt:float) -> None:
+    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: dict[str,Entity], dt:float) -> None:
         logger.debug(f'move_to_avoiding: Moving {self.uuid=} towards {destination=}')
         # Determine target velocity towards the player
         self.move_to(destination)
@@ -242,13 +245,16 @@ class Enemy(Entity):
         for player in player_position_list:
             if player['uuid'] == self.target:
                 super().move_to(player['position'])
-
 class Player(Entity):
     def __init__(self, location, sprite, uuid, name:str=None) -> None:
         super().__init__(location, sprite, uuid, name)
         self._color = (0,0,128,255)
         self._max_velocity = 350
         self._type = 'player'
+        self._attacks: dict[str,Particle] = {}
+        self._last_attack = 0
+        self._attack_timer = 0
+        self._next_attack = 1000
 
     def update(self, dt, bounds:pg.Rect) -> None:
         keys = pg.key.get_pressed()
@@ -277,6 +283,18 @@ class Player(Entity):
                 self._velocity = target_velocity
         logger.debug(f'player:update: {self._velocity.length()}')
         super().update(dt, bounds)
+        completes = [a for a in self._attacks if self._attacks[a].complete]
+        for c in completes:
+            del self._attacks[c]
+        [self._attacks[a].update(dt) for a in self._attacks]
+
+    def attack(self, closest_point:pg.Vector2, dt:float, ticks:float ):
+        self._attack_timer += (dt*1000)
+        if self._last_attack + self._attack_timer >= self._last_attack + self._next_attack:
+            ptcl_uuid = str(uuid.uuid4())
+            self._attacks[ptcl_uuid] = Particle(ticks, self.get_location(), closest_point - self.get_location())
+            self._last_attack = ticks
+            self._attack_timer = 0
 
     def serialize(self) -> dict:
         ret_val = super().serialize()
@@ -284,4 +302,6 @@ class Player(Entity):
         return ret_val
     
     def draw(self, screen) -> None:
+        for _, particle in self._attacks.items():
+            if not particle.complete: particle.draw(screen)
         super().draw(screen, color=self._color)
