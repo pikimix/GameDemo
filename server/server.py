@@ -15,7 +15,7 @@ class WebSocketServer:
         self.messages = asyncio.Queue()  # Use an asyncio.Queue for safe access
         self.running = True
         self.entities = {}
-        for _ in range(101):
+        for _ in range(1):
             self.entities[str(uuid.uuid4())] = {
                     'type': 'enemy',
                     'location': {
@@ -53,6 +53,9 @@ class WebSocketServer:
         self.last_message_time = asyncio.get_event_loop().time()  # Track last message time
         self.update_interval = 0.01  # Update interval in seconds
         self.scores = {}
+        self.update_queue = asyncio.Queue()
+        self.kill_queue = asyncio.Queue()
+        self.killed = []
 
     async def send_update(self):
         await self.broadcast(None, {"entities": {**self.entities, **self.players}})
@@ -92,6 +95,7 @@ class WebSocketServer:
         self.last_message_time = asyncio.get_event_loop().time()
         data = json.loads(message)
         if isinstance(data, dict):
+            await self.update_queue.put(True)
             if 'entities' in data.keys():
                 for r_uuid, remote_entity in data['entities'].items():
                     if r_uuid in self.entities.keys():
