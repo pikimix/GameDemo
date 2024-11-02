@@ -64,12 +64,13 @@ class Entity:
         self.is_alive = True
 
     def damage(self, damage: int, source_location: pg.Vector2=None) -> None:
-        self._hp -= damage
+        # self._hp -= damage
         if self._hp <= 0:
             self.is_alive = False
         elif source_location:
-            self._innertia_vector = self.get_location() - source_location
-            self._innertia_scaler = 0.2
+            self._innertia_vector = self.get_location().normalize() - source_location.normalize()
+
+            self._innertia_scaler = randint(int(self._max_velocity/4), int(self._max_velocity/2))
 
     def move_to(self, destination: pg.Vector2) -> None:
         target_velocity = destination - self.get_location()
@@ -140,9 +141,9 @@ class Entity:
         logger.debug(f'Entity:update: {self._type=}{self._velocity=}')
         if self._innertia_scaler>0:
             inertia = self._innertia_vector * self._max_velocity * self._innertia_scaler
-            inertia += self._velocity
+            # inertia += self._velocity
             self._sprite.update(inertia * dt)
-            self._innertia_scaler -= 0.05
+            self._innertia_scaler -= self._max_velocity * 4 * dt
         else:
             self._sprite.update(self._velocity * dt)
         if bounds:
