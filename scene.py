@@ -26,6 +26,7 @@ class Scene:
                 {'player': self._sprite_list.get_sprite('player')}, self.uuid, name)
         self._font = pg.font.SysFont('Ariel', 30)
         self._score = 0
+        self._score_additional = 0
         self._leader_board = {}
         #{'90565d97-c0c2-411c-9626-ed19874c4110': {'name': 'player1', 'score': 2899}, 'd8016dfb-6a2b-40a6-b2bd-1f338f94e2ca': {'name': 'player2', 'score': 953}}
         self._last_start = 0
@@ -40,7 +41,19 @@ class Scene:
 
         self.player_attack(enemies, dt)
 
+        killed = {}
         attacks = self._player.attack_particles
+        for ptcl_uuid, particle in attacks.items():
+            collides = particle.get_rect().collidedict(enemies_rect, values=True)
+            if collides:
+                enemies[collides[0]].is_alive = False
+                enemies[collides[0]].target = None
+                self._score_additional += 100
+                particle.complete = True
+                logger.debug(f'{collides[0]=} {enemies[collides[0]].is_alive=}')
+                if enemies[collides[0]].target != self.uuid:
+                    killed[collides[0]] = enemies[collides[0]]
+
         # update animation for remote players
         [self._other_players[e].update_animation() for e in self._other_players ]
 
@@ -54,7 +67,7 @@ class Scene:
                 {'player': self._sprite_list.get_sprite('player')})
         else:
             self._score = self._current_ticks - self._last_start
-            payload['score'] = self._score
+            payload['score'] = self._score + self._score_additional
             self._player.update(dt, self._screen.get_rect())
         was_alive = self._player.is_alive
         if enemies_rect: 
@@ -69,9 +82,11 @@ class Scene:
                     enemies[e].target = None
             if was_alive:
                 self._score = self._current_ticks - self._last_start
-                payload['score'] = self._score
+                payload['score'] = self._score + self._score_additional
 
         payload['entities'] = {e: enemies[e].serialize() for e in enemies if enemies[e].target == self.uuid}
+        for e in killed:
+            payload['entities'][e] = enemies[e].serialize()
         # add player to payload
         payload['entities'][str(self._player.uuid)] = self._player.serialize()
         
@@ -154,7 +169,7 @@ class Scene:
         self.draw_scoreboard()
         if self._player.is_alive:
             self._player.draw(self._screen)
-            score = self._score if self._score else self._current_ticks - self._last_start
+            score = self._score + self._score_additional
             text_surface = self._font.render(f'Current Score: {score}', True, (0, 0, 0))
             self._screen.blit(text_surface, (0,0))
         else:
