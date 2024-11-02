@@ -14,21 +14,20 @@ class SpriteSet:
             return None
 
 class AnimatedSprite(pg.sprite.Sprite):
-    def __init__(self, image: pg.Surface, location:pg.Vector2=None) -> None:
+    def __init__(self, image: pg.Surface, location:pg.Vector2=None, radius:int=10) -> None:
         self.image = None
         self._frame = None
         self.rect = None
+        if not location: location = pg.Vector2(0,0)
         if image:
             self.image = image
             self._frame = pg.Rect(0,0,32,64)
-            if location:
-                self.rect = pg.Rect(location.x,location.y,self._frame.width, self._frame.height)
-            else:
-                self.rect = pg.Rect(0,0,self._frame.width, self._frame.height)
+            self.rect = pg.Rect(location.x,location.y,self._frame.width, self._frame.height)
         else:
+            if not radius: radius = 10
             self.image = pg.Surface((20, 20), pg.SRCALPHA)
-            pg.draw.circle(self.image, (255,255,255,255), (10,10), radius=10, width=0)
-            self.rect = pg.Rect(0,0,20, 20)
+            pg.draw.circle(self.image, (255,255,255,255), (radius,radius), radius=radius, width=0)
+            self.rect = pg.Rect(location.x-radius,location.y-radius,radius*2, radius*2)
 
         self._frame_update = 1000/10
         self._last_frame = 0
