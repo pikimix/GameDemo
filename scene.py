@@ -32,6 +32,7 @@ class Scene:
         self._last_start = 0
         self._name = name
         self._current_ticks = 0
+        self._recently_killed = {}
 
     def update(self, dt: float) -> None:
         self._current_ticks = pg.time.get_ticks()
@@ -52,7 +53,7 @@ class Scene:
                 particle.complete = True
                 logger.debug(f'{collides[0]=} {enemies[collides[0]].is_alive=}')
                 if enemies[collides[0]].target != self.uuid:
-                    killed[collides[0]] = enemies[collides[0]]
+                    killed[collides[0]] = self._current_ticks
 
         # update animation for remote players
         [self._other_players[e].update_animation() for e in self._other_players ]
@@ -87,6 +88,7 @@ class Scene:
         payload['entities'] = {e: enemies[e].serialize() for e in enemies if enemies[e].target == self.uuid}
         for e in killed:
             payload['entities'][e] = enemies[e].serialize()
+            self._recently_killed[e] = self._current_ticks
         # add player to payload
         payload['entities'][str(self._player.uuid)] = self._player.serialize()
         
@@ -124,19 +126,27 @@ class Scene:
                 self._other_players[r_uuid_text] = Entity.from_dict(entity, self._sprite_list, uuid.UUID(r_uuid_text))
         except Exception as e:
             logger.error(f'update_other_players:add:{e=} : {r_uuid_text=} {entity=}')
+
     def update_enemy(self, r_uuid_text, entity):
-        r_uuid = uuid.UUID(r_uuid_text)
-        try:
-            if r_uuid_text in self._enemies:
-                if self._enemies[r_uuid_text].target == self.uuid:
-                    self._enemies[r_uuid_text].is_alive = entity['is_alive']
+        if entity['is_alive']:
+            if r_uuid_text in self._recently_killed.keys():
+                logger.info(f'enemy_update: Matched Recently Killed {r_uuid_text}')
+                if self._recently_killed[r_uuid_text] < self._current_ticks + 1000:
+                    return
                 else:
-                    self._enemies[r_uuid_text].net_update(entity)
-            else:
-                enemy = Enemy.from_dict(entity, self._sprite_list, r_uuid)
-                self._enemies[r_uuid_text] = enemy
-        except Exception as e:
-            logger.error(f'update_enemy:{e=} : {r_uuid_text=} {r_uuid=} {entity=}')
+                    del self._recently_killed[r_uuid_text]
+            r_uuid = uuid.UUID(r_uuid_text)
+            try:
+                if r_uuid_text in self._enemies:
+                    if self._enemies[r_uuid_text].target == self.uuid:
+                        self._enemies[r_uuid_text].is_alive = entity['is_alive']
+                    else:
+                        self._enemies[r_uuid_text].net_update(entity)
+                else:
+                    enemy = Enemy.from_dict(entity, self._sprite_list, r_uuid)
+                    self._enemies[r_uuid_text] = enemy
+            except Exception as e:
+                logger.error(f'update_enemy:{e=} : {r_uuid_text=} {r_uuid=} {entity=}')
 
     def handle_message(self, message):
         # Handle received message from the server
