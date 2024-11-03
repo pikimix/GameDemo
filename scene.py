@@ -10,29 +10,32 @@ from network import WebSocketClient
 import json
 import logging
 from random import choice
+from particle import Particle
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 class Scene:
     def __init__(self, name:str, debug: bool=False, url: str='localhost', port: int=6789, p_uuid=None) -> None:
         self.uuid = uuid.UUID(p_uuid) if p_uuid else uuid.uuid4()
         logger.info(self.uuid)
-        self._ws_client = WebSocketClient(f'ws://{url}:{port}')
+        self._ws_client: WebSocketClient = WebSocketClient(f'ws://{url}:{port}')
         self._ws_client.set_message_handler(self.handle_message)
         self._ws_client.start()
-        self._screen = pg.display.set_mode((1280, 720))
+        self._screen: pg.Surface = pg.display.set_mode((1280, 720))
         self._other_players: dict[str, Player] = {}
         self._enemies: dict[str, Enemy] = {}
-        self._sprite_list = SpriteSet({'player': 'assets/player.png'})
-        self._player = Player(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
+        self._particles: dict[str,Particle] ={}
+        self._sprite_list: SpriteSet = SpriteSet({'player': 'assets/player.png'})
+        self._player: Player = Player(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
                 {'player': self._sprite_list.get_sprite('player')}, self.uuid, name)
-        self._font = pg.font.SysFont('Ariel', 30)
-        self._score = 0
-        self._score_additional = 0
-        self._leader_board = {}
+        self._font: pg.font.Font = pg.font.SysFont('Ariel', 30)
+        self._score: int = 0
+        self._score_additional: int = 0
+        self._leader_board: dict[str:dict[str:str|int]] = {}
         #{'90565d97-c0c2-411c-9626-ed19874c4110': {'name': 'player1', 'score': 2899}, 'd8016dfb-6a2b-40a6-b2bd-1f338f94e2ca': {'name': 'player2', 'score': 953}}
-        self._last_start = 0
-        self._name = name
-        self._current_ticks = 0
+        self._last_start: int = 0
+        self._name: str = name
+        self._current_ticks: int = 0
 
     def update(self, dt: float) -> None:
         self._current_ticks = pg.time.get_ticks()
@@ -57,9 +60,13 @@ class Scene:
                     killed[collides[0]] = self._current_ticks
         if killed:
             payload['killed'] = killed
+        new_particles = {p:attacks[p].serialize() for p in attacks if attacks[p].new}
+        if new_particles:
+            payload['particles'] = new_particles
 
         # update animation for remote players
         [self._other_players[e].update_animation() for e in self._other_players ]
+        [self._particles[p].update(dt) for p in self._particles]
 
         if not self._player.is_alive:
             keys = pg.key.get_pressed()
@@ -142,7 +149,7 @@ class Scene:
                 logger.error(f'update_enemy:{e=} : {r_uuid_text=} {r_uuid=} {entity=}')
 
     def spawn_enemy(self, r_uuid, entity):
-        logger.info(f'spawn_enemy: Respawning {r_uuid}')
+        logger.debug(f'spawn_enemy: Respawning {r_uuid}')
         location = pg.Vector2(choice([randint(0, 128), randint(1152, 1280)]),\
                                     choice([randint(0, 128), randint(592, 720)]))
         if r_uuid in self._enemies:
@@ -154,7 +161,7 @@ class Scene:
         # Handle received message from the server
         logger.debug(f'handle_message: Received message: {type(message)=} {message=}')
         logger.debug(f'handle_message: Received {len(message.encode("utf-8"))} bytes')
-        data = json.loads(message)
+        data:dict[str:dict[str,object]] = json.loads(message)
         if 'entities' in data.keys():
             for r_uuid, remote_entity in data['entities'].items():
                 if r_uuid != str(self.uuid):
@@ -170,6 +177,13 @@ class Scene:
                 if r_uuid in self._enemies:
                     self._enemies[r_uuid].is_alive = False
                     self._enemies[r_uuid].target = None
+        if 'particles' in data and 'offset' in data:
+            offset = data['offset']
+            logger.info(f'{offset=}')
+            for p_uuid, particle in data['particles'].items():
+                particle['start_time'] += offset
+                self._particles[p_uuid] = Particle.from_dict(particle, self._current_ticks)
+
         if 'remove' in data.keys():
             logger.error('handle_message:Received remove message - This should no longer happen')
         if 'scores' in data.keys():
@@ -183,6 +197,8 @@ class Scene:
         for enemy in self._enemies:
             if self._enemies[enemy].is_alive:
                 self._enemies[enemy].draw(self._screen)
+        for _, particle in self._particles.items():
+            if not particle.complete: particle.draw(self._screen)
         for player in self._other_players:
             logger.debug(f"{player=} {self._other_players[player].is_alive=}")
             if self._other_players[player].is_alive:
