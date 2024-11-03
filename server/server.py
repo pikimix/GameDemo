@@ -123,6 +123,8 @@ class WebSocketServer:
                         self.entities[r_uuid]['target'] = None
                         self.entities[r_uuid]['location']['x'] = 1280
                         self.entities[r_uuid]['location']['y'] = 720
+            if 'particles' in data:
+                await self.broadcast(client_id, {'particles': data['particles']})
             if 'score' in data.keys():
                 if data['uuid'] in self.scores.keys():
                     logger.debug(self.scores[data['uuid']])
