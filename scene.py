@@ -11,7 +11,7 @@ import json
 import logging
 from random import choice
 from particle import Particle
-
+import time
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 class Scene:
@@ -39,7 +39,7 @@ class Scene:
 
     def update(self, dt: float) -> None:
         self._current_ticks = pg.time.get_ticks()
-        payload = {'uuid':str(self.uuid), 'name': self._name, 'entities':{}, 'time': self._current_ticks}
+        payload = {'uuid':str(self.uuid), 'name': self._name, 'entities':{}, 'time': time.time()}
         logger.debug(f'update: {dt=}')
         enemies = {e:self._enemies[e] for e in self._enemies if self._enemies[e].is_alive}
         enemies_rect = {e:self._enemies[e].get_rect() for e in enemies}
@@ -67,6 +67,9 @@ class Scene:
         # update animation for remote players
         [self._other_players[e].update_animation() for e in self._other_players ]
         [self._particles[p].update(dt) for p in self._particles]
+        for p in [p for p in self._particles if self._particles[p].complete]:
+            if self._particles[p].complete:
+                del self._particles[p]
 
         if not self._player.is_alive:
             keys = pg.key.get_pressed()
@@ -179,13 +182,15 @@ class Scene:
                     self._enemies[r_uuid].target = None
         if 'particles' in data and 'offset' in data:
             offset = data['offset']
-            logger.info(f'{offset=}')
+            logger.debug(f'{offset=}')
             for p_uuid, particle in data['particles'].items():
-                particle['start_time'] += offset
-                self._particles[p_uuid] = Particle.from_dict(particle, self._current_ticks)
+                particle['start_time'] -= offset
+                logger.info(f'handle_message: {particle["start_time"]=} {self._current_ticks=}')
+                self._particles[p_uuid] = Particle.from_dict(particle, time.time())
+            logger.info(f'handle_message: {len(self._particles)}')
 
         if 'remove' in data.keys():
-            logger.error('handle_message:Received remove message - This should no longer happen')
+            logger.error(f'handle_message:Received remove message: {data["remove"]}')
         if 'scores' in data.keys():
             self._leader_board = data['scores']
 
@@ -198,7 +203,7 @@ class Scene:
             if self._enemies[enemy].is_alive:
                 self._enemies[enemy].draw(self._screen)
         for _, particle in self._particles.items():
-            if not particle.complete: particle.draw(self._screen)
+            particle.draw(self._screen)
         for player in self._other_players:
             logger.debug(f"{player=} {self._other_players[player].is_alive=}")
             if self._other_players[player].is_alive:

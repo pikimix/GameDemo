@@ -4,7 +4,7 @@ import json
 import logging
 import uuid
 from random import randint, choice
-
+import time
 # Configure logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -66,7 +66,7 @@ class WebSocketServer:
             initial_message = await websocket.recv()
             data = json.loads(initial_message)
             client_id = data.get("uuid")
-            client_offset = asyncio.get_event_loop().time() - (data.get('time')/1000)
+            client_offset = time.time() - data.get('time')
             if not client_id:
                 logger.error("No UUID provided by client. Closing connection.")
                 await websocket.close()
@@ -96,6 +96,8 @@ class WebSocketServer:
         data = json.loads(message)
         if isinstance(data, dict):
             await self.update_queue.put(True)
+            if 'time' in data:
+                self.connected_clients[client_id][1] = time.time() - data['time']
             if 'entities' in data.keys():
                 for r_uuid, remote_entity in data['entities'].items():
                     if r_uuid in self.entities.keys():
@@ -124,6 +126,8 @@ class WebSocketServer:
                         self.entities[r_uuid]['location']['x'] = 1280
                         self.entities[r_uuid]['location']['y'] = 720
             if 'particles' in data:
+                for p in data['particles']:
+                    data['particles'][p]['start_time'] += self.connected_clients[client_id][1]
                 await self.broadcast(client_id, {'particles': data['particles']})
             if 'score' in data.keys():
                 if data['uuid'] in self.scores.keys():
@@ -198,7 +202,6 @@ class WebSocketServer:
         start_server = websockets.serve(self.handler, host, port)
         asyncio.get_event_loop().run_until_complete(start_server)
         logger.info(f"WebSocket server started on ws://{host}:{port}")
-
         # Start the periodic update task
         if update_function:
             asyncio.get_event_loop().create_task(update_function(self))

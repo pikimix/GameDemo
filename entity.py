@@ -3,7 +3,7 @@ from sprite_sheet import AnimatedSprite, SpriteSet
 import pygame as pg
 from math import radians
 from random import randint
-
+import time
 import logging
 import uuid
 
@@ -293,12 +293,13 @@ class Player(Entity):
         [self.attack_particles[a].update(dt) for a in self.attack_particles]
 
     def attack(self, closest_point:pg.Vector2, dt:float, ticks:float ):
-        self._attack_timer += (dt*1000)
-        if self._last_attack + self._attack_timer >= self._last_attack + self._next_attack:
-            ptcl_uuid = str(uuid.uuid4())
-            self.attack_particles[ptcl_uuid] = Particle(ticks, self.get_location(), closest_point - self.get_location())
-            self._last_attack = ticks
-            self._attack_timer = 0
+        if self.is_alive:
+            self._attack_timer += (dt*1000)
+            if self._last_attack + self._attack_timer >= self._last_attack + self._next_attack:
+                ptcl_uuid = str(uuid.uuid4())
+                self.attack_particles[ptcl_uuid] = Particle(time.time(), self.get_location(), closest_point - self.get_location())
+                self._last_attack = ticks
+                self._attack_timer = 0
 
     def serialize(self) -> dict:
         ret_val = super().serialize()

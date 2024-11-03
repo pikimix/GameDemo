@@ -24,19 +24,20 @@ class Particle:
     def from_dict(particle:dict, current_tick:float) -> Particle:
         new_particle = Particle(
             particle['start_time'],
-            pg.Vector2(particle['origin']),
-            pg.Vector2(particle['direction']),
+            pg.Vector2(particle['origin']['x'], particle['origin']['y']),
+            pg.Vector2(particle['direction']['x'], particle['direction']['y']),
             particle['speed'],
             particle['lifetime'],
             particle['type']
         )
         # Chances are the particle was created before we received it
         # Move it to its current location
+        logger.info(f'from_dict: {new_particle.get_rect()} before catch up')
         if current_tick != particle['start_time']:
             dt = current_tick - particle['start_time']
-            new_particle._sprite.update(
-                new_particle._direction * new_particle._speed * dt)
-        new_particle.check_lifetime(dt)
+            logger.info(f'from_dict: {dt=}')
+            new_particle.update(dt)
+        logger.info(f'from_dict: {new_particle.get_rect()} after catch up')
         return new_particle
     
     def serialize(self):
