@@ -217,7 +217,6 @@ class Enemy(Entity):
         self._max_velocity = randint(self._max_velocity/2, self._max_velocity)
         self._draw_hp = False
 
-
     @staticmethod
     def from_dict(enemy: dict, sprite_list: SpriteSet, e_uuid: uuid.UUID) -> Enemy:
         sprite = None
@@ -230,6 +229,11 @@ class Enemy(Entity):
         new_enemy.is_alive = enemy['is_alive']
         new_enemy._velocity = pg.Vector2(enemy['velocity']['x'], enemy['velocity']['y'])
         return new_enemy
+
+    def respawn(self, location: pg.Vector2, sprite: dict = None, target:uuid=None) -> None:
+        super().respawn(location, sprite)
+        if target:
+            self.target = target
 
     def serialize(self) -> dict:
         ret_val = super().serialize()

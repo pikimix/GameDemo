@@ -15,7 +15,7 @@ class WebSocketServer:
         self.messages = asyncio.Queue()  # Use an asyncio.Queue for safe access
         self.running = True
         self.entities = {}
-        for _ in range(1):
+        for _ in range(101):
             self.entities[str(uuid.uuid4())] = {
                     'type': 'enemy',
                     'location': {
@@ -75,7 +75,7 @@ class WebSocketServer:
             self.connected_clients[client_id] = [websocket, client_offset]
             logger.info(f"Client connected: {client_id}")
             # add New enemy targeting the new player
-            self.spawn_enemies(client_id, 1)
+            await self.spawn_enemies(client_id, 1)
 
             # Broadcast the combined message to all connected clients
             await self.broadcast(None, {"entities": self.entities})
@@ -104,7 +104,7 @@ class WebSocketServer:
                         if not remote_entity['is_alive'] and self.players[r_uuid]['is_alive']:
                             self.remove_enemys_targeting(r_uuid)
                         elif remote_entity['is_alive'] and not self.players[r_uuid]['is_alive']:
-                            self.spawn_enemies(r_uuid,1)
+                            await self.spawn_enemies(r_uuid,1)
                         self.players[r_uuid] = remote_entity
                     else:
                         try:
@@ -114,13 +114,21 @@ class WebSocketServer:
                                 self.players[r_uuid] = remote_entity
                         except Exception as e:
                             logger.info(f'\n\n{r_uuid=} {remote_entity=}\n\n')
-
+                await self.broadcast(client_id, {'entities': data['entities']})
+            if 'killed' in data:
+                for r_uuid, time_of_death in data['killed'].items():
+                    if r_uuid in self.entities:
+                        logger.info(f'handle_message: Killing {r_uuid=}')
+                        self.entities[r_uuid]['is_alive'] = False
+                        self.entities[r_uuid]['target'] = None
+                        self.entities[r_uuid]['location']['x'] = 1280
+                        self.entities[r_uuid]['location']['y'] = 720
             if 'score' in data.keys():
                 if data['uuid'] in self.scores.keys():
                     logger.debug(self.scores[data['uuid']])
                     if (self.scores[data['uuid']]['current_score'] // 2500) < (data['score'] // 2500):
                         logger.info(f'handle_message: Score crossed breakpoint for {data["name"]}')
-                        self.spawn_enemies(data['uuid'],1)
+                        await self.spawn_enemies(data['uuid'],1)
                     self.scores[data['uuid']]['current_score'] = data['score']
                     if data['score'] > self.scores[data['uuid']]['score']:
                         self.scores[data['uuid']] = {'name': data['name'], 'score': data['score'], 'current_score': data['score']}
@@ -130,7 +138,7 @@ class WebSocketServer:
                 else:
                     self.scores[data['uuid']] = {'name': data['name'], 'score': data['score'], 'current_score': data['score']}
                     logger.debug(f'Set score for {data["uuid"]} to {self.scores[data["uuid"]]}')
-                await self.broadcast(None, {'scores':self.scores})
+                # await self.broadcast(None, {'scores':self.scores})
 
     async def broadcast(self, sender_id, message):
         logger.debug(f'Broadcast Message: {message=}')
@@ -145,19 +153,22 @@ class WebSocketServer:
                     except Exception as e:
                         logger.error(f"Error sending message to {client_id}: {e}")
 
-    def spawn_enemies(self, target: str, number_to_spawn: int):
+    async def spawn_enemies(self, target: str, number_to_spawn: int):
         logger.info(f'spawn_enemies: {target=} {number_to_spawn=}')
-        spawned = 0
+        spawned = []
         for e_uuid, entity in self.entities.items():
-            if not entity['is_alive'] and spawned < number_to_spawn:
+            if not entity['is_alive'] and len(spawned) < number_to_spawn:
                 logger.info(f'spawn_enemy: Spawning {e_uuid=} to target {target=}')
                 entity['is_alive'] = True
                 entity['target'] = target
                 entity['location']['x'] = choice([randint(0, 128), randint(1152, 1280)])
                 entity['location']['y'] = choice([randint(0, 128), randint(592, 720)])
-                spawned += 1
+                spawned.append(e_uuid)
         if not spawned:
             logger.error('spawn_enemys: No Enemies to Spawn')
+        else:
+            entities = {e:self.entities[e] for e in self.entities if e in spawned}
+            await self.broadcast(None, {'spawn': entities})
 
     def remove_entity(self, entity_id):
         logger.info(f'remove_entity: Received removal for {entity_id}')

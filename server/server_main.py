@@ -20,12 +20,13 @@ async def update_entities(server: WebSocketServer):
     while server.running:
         current_time = asyncio.get_event_loop().time()
         logger.debug(f"{(current_time - last_update_time)=} {server.update_interval}")
-        if current_time - last_update_time > server.update_interval:
-            dt = current_time - last_update_time
-            logger.debug("Running update")
-            updates = await check_queue(server)
-            last_update_time = current_time
-            if updates: await server.send_update()
+        # if current_time - last_update_time > server.update_interval:
+            # dt = current_time - last_update_time
+            # logger.debug("Running update")
+            # updates = await check_queue(server)
+            # last_update_time = current_time
+            # if updates: 
+            #   await server.send_update()
         await asyncio.sleep(0.01)  # Adjust sleep time as needed
 
 async def check_queue(server: WebSocketServer):

@@ -9,6 +9,7 @@ import uuid
 from network import WebSocketClient  
 import json
 import logging
+from random import choice
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 class Scene:
@@ -32,10 +33,10 @@ class Scene:
         self._last_start = 0
         self._name = name
         self._current_ticks = 0
-        self._recently_killed = {}
 
     def update(self, dt: float) -> None:
         self._current_ticks = pg.time.get_ticks()
+        payload = {'uuid':str(self.uuid), 'name': self._name, 'entities':{}, 'time': self._current_ticks}
         logger.debug(f'update: {dt=}')
         enemies = {e:self._enemies[e] for e in self._enemies if self._enemies[e].is_alive}
         enemies_rect = {e:self._enemies[e].get_rect() for e in enemies}
@@ -54,11 +55,12 @@ class Scene:
                 logger.debug(f'{collides[0]=} {enemies[collides[0]].is_alive=}')
                 if enemies[collides[0]].target != self.uuid:
                     killed[collides[0]] = self._current_ticks
+        if killed:
+            payload['killed'] = killed
 
         # update animation for remote players
         [self._other_players[e].update_animation() for e in self._other_players ]
 
-        payload = {'uuid':str(self.uuid), 'name': self._name, 'entities':{}, 'time': self._current_ticks}
         if not self._player.is_alive:
             keys = pg.key.get_pressed()
             if keys[pg.K_SPACE]:
@@ -86,9 +88,6 @@ class Scene:
                 payload['score'] = self._score + self._score_additional
 
         payload['entities'] = {e: enemies[e].serialize() for e in enemies if enemies[e].target == self.uuid}
-        for e in killed:
-            payload['entities'][e] = enemies[e].serialize()
-            self._recently_killed[e] = self._current_ticks
         # add player to payload
         payload['entities'][str(self._player.uuid)] = self._player.serialize()
         
@@ -129,12 +128,6 @@ class Scene:
 
     def update_enemy(self, r_uuid_text, entity):
         if entity['is_alive']:
-            if r_uuid_text in self._recently_killed.keys():
-                logger.info(f'enemy_update: Matched Recently Killed {r_uuid_text}')
-                if self._recently_killed[r_uuid_text] < self._current_ticks + 1000:
-                    return
-                else:
-                    del self._recently_killed[r_uuid_text]
             r_uuid = uuid.UUID(r_uuid_text)
             try:
                 if r_uuid_text in self._enemies:
@@ -148,6 +141,15 @@ class Scene:
             except Exception as e:
                 logger.error(f'update_enemy:{e=} : {r_uuid_text=} {r_uuid=} {entity=}')
 
+    def spawn_enemy(self, r_uuid, entity):
+        logger.info(f'spawn_enemy: Respawning {r_uuid}')
+        location = pg.Vector2(choice([randint(0, 128), randint(1152, 1280)]),\
+                                    choice([randint(0, 128), randint(592, 720)]))
+        if r_uuid in self._enemies:
+            self._enemies[r_uuid].respawn(location, target=uuid.UUID(entity['target']))
+        else:
+            self._enemies[r_uuid] = Enemy.from_dict(entity, self._sprite_list, r_uuid)
+
     def handle_message(self, message):
         # Handle received message from the server
         logger.debug(f'handle_message: Received message: {type(message)=} {message=}')
@@ -159,6 +161,15 @@ class Scene:
                     if remote_entity['type'] == 'player': self.update_other_players(r_uuid, remote_entity)
                     elif remote_entity['type'] == 'enemy': self.update_enemy(r_uuid, remote_entity)
                     else: logger.error(f"could not process: {r_uuid=} {remote_entity=}")
+        if 'spawn' in data:
+            for r_uuid, entity in data['spawn'].items():
+                if entity['target'] == str(self.uuid):
+                    self.spawn_enemy(r_uuid, entity)
+        if 'killed' in data:
+            for r_uuid, ToD in data['killed']:
+                if r_uuid in self._enemies:
+                    self._enemies[r_uuid].is_alive = False
+                    self._enemies[r_uuid].target = None
         if 'remove' in data.keys():
             logger.error('handle_message:Received remove message - This should no longer happen')
         if 'scores' in data.keys():
