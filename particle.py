@@ -9,23 +9,23 @@ logging.basicConfig(level=logging.INFO)
 
 class Particle:
     def __init__(self, start_time:float, origin:pg.Vector2, direction:pg.Vector2, speed:int=600, lifetime:float=1000, type='particle') -> None:
-        self._origin = origin
-        self._direction = direction.normalize()
-        self._speed = speed
-        self._lifetime = lifetime
-        self._start_time = start_time
-        self._time_alive = 0
-        self._sprite = AnimatedSprite(None, origin, radius=5)
-        self._type = type
-        self.new = True
-        self.complete = False
+        self._origin: pg.Vector2 = origin
+        self._direction: pg.Vector2 = direction.normalize()
+        self._speed: int = speed
+        self._lifetime: float = lifetime
+        self._start_time: float = start_time
+        self._time_alive: float = 0
+        self._sprite: AnimatedSprite = AnimatedSprite(None, origin, radius=5)
+        self._type: str = type
+        self.new: bool = True
+        self.complete: bool = False
 
     @staticmethod
     def from_dict(particle:dict, current_tick:float) -> Particle:
         new_particle = Particle(
             particle['start_time'],
-            particle['origin'],
-            particle['direction'],
+            pg.Vector2(particle['origin']),
+            pg.Vector2(particle['direction']),
             particle['speed'],
             particle['lifetime'],
             particle['type']
@@ -42,8 +42,14 @@ class Particle:
     def serialize(self):
         return {
             'start_time': self._start_time,
-            'origin': self._origin,
-            'direction': self._direction,
+            'origin': {
+                'x': self._origin.x,
+                'y': self._origin.y
+                },
+            'direction': {
+                'x': self._direction.x,
+                'y': self._direction.y
+                },
             'speed': self._speed,
             'lifetime': self._lifetime,
             'type': self._type
