@@ -25,9 +25,23 @@ class Scene:
         self._other_players: dict[str, Player] = {}
         self._enemies: dict[str, Enemy] = {}
         self._particles: dict[str,Particle] ={}
-        self._sprite_list: SpriteSet = SpriteSet({'player': 'assets/player.png'})
+        self._sprite_list: SpriteSet = SpriteSet({
+            'player-round': {
+                'file':'assets/player-rounder.png',
+                'width': 32,
+                'height': 32,
+                'frames': 4
+                
+            },
+            'player': {
+                'file':'assets/player.png',
+                'width': 32,
+                'height': 64,
+                'frames': 4
+            }
+        })
         self._player: Player = Player(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
-                {'player': self._sprite_list.get_sprite('player')}, self.uuid, name)
+                {'player-round': self._sprite_list.get_sprite('player-round')}, self.uuid, name)
         self._font: pg.font.Font = pg.font.SysFont('Ariel', 30)
         self._score: int = 0
         self._score_additional: int = 0
