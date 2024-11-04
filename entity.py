@@ -308,5 +308,5 @@ class Player(Entity):
     
     def draw(self, screen) -> None:
         for _, particle in self.attack_particles.items():
-            if not particle.complete: particle.draw(screen)
+            if not particle.complete: particle.draw(screen,color=(41,45,41,255))
         super().draw(screen, color=self._color)

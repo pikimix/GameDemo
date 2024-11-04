@@ -217,7 +217,7 @@ class Scene:
             if self._enemies[enemy].is_alive:
                 self._enemies[enemy].draw(self._screen)
         for _, particle in self._particles.items():
-            particle.draw(self._screen)
+            particle.draw(self._screen, (41,45,41,255))
         for player in self._other_players:
             logger.debug(f"{player=} {self._other_players[player].is_alive=}")
             if self._other_players[player].is_alive:
