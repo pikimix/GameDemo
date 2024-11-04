@@ -15,7 +15,7 @@ class WebSocketServer:
         self.messages = asyncio.Queue()  # Use an asyncio.Queue for safe access
         self.running = True
         self.entities = {}
-        for _ in range(101):
+        for _ in range(1001):
             self.entities[str(uuid.uuid4())] = {
                     'type': 'enemy',
                     'location': {
@@ -56,6 +56,12 @@ class WebSocketServer:
         self.update_queue = asyncio.Queue()
         self.kill_queue = asyncio.Queue()
         self.killed = []
+        self.enemy_spawn_rate: dict[str,float] = {
+            'respawn': 7,
+            'score' : 7,
+            'minimum': 3,
+            'mutiplyer': 1
+        }
 
     async def send_update(self):
         await self.broadcast(None, {"entities": {**self.entities, **self.players}})
@@ -75,7 +81,8 @@ class WebSocketServer:
             self.connected_clients[client_id] = [websocket, client_offset]
             logger.info(f"Client connected: {client_id}")
             # add New enemy targeting the new player
-            await self.spawn_enemies(client_id, 1)
+            await self.spawn_enemies(client_id, randint(self.enemy_spawn_rate['minimum']*self.enemy_spawn_rate['mutiplyer'],
+                self.enemy_spawn_rate['respawn']*self.enemy_spawn_rate['mutiplyer']))
 
             # Broadcast the combined message to all connected clients
             await self.broadcast(None, {"entities": self.entities})
@@ -106,7 +113,8 @@ class WebSocketServer:
                         if not remote_entity['is_alive'] and self.players[r_uuid]['is_alive']:
                             self.remove_enemys_targeting(r_uuid)
                         elif remote_entity['is_alive'] and not self.players[r_uuid]['is_alive']:
-                            await self.spawn_enemies(r_uuid,1)
+                            await self.spawn_enemies(r_uuid,randint(self.enemy_spawn_rate['minimum']*self.enemy_spawn_rate['mutiplyer'],
+                                self.enemy_spawn_rate['respawn']*self.enemy_spawn_rate['mutiplyer']))
                         self.players[r_uuid] = remote_entity
                     else:
                         try:
@@ -134,7 +142,8 @@ class WebSocketServer:
                     logger.debug(self.scores[data['uuid']])
                     if (self.scores[data['uuid']]['current_score'] // 2500) < (data['score'] // 2500):
                         logger.info(f'handle_message: Score crossed breakpoint for {data["name"]}')
-                        await self.spawn_enemies(data['uuid'],1)
+                        await self.spawn_enemies(data['uuid'],randint(self.enemy_spawn_rate['minimum']*self.enemy_spawn_rate['mutiplyer'],
+                            self.enemy_spawn_rate['score']*self.enemy_spawn_rate['mutiplyer']))
                     self.scores[data['uuid']]['current_score'] = data['score']
                     if data['score'] > self.scores[data['uuid']]['score']:
                         self.scores[data['uuid']] = {'name': data['name'], 'score': data['score'], 'current_score': data['score']}
