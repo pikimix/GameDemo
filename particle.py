@@ -8,14 +8,14 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 class Particle:
-    def __init__(self, start_time:float, origin:pg.Vector2, direction:pg.Vector2, speed:int=600, lifetime:float=1000, type='particle') -> None:
+    def __init__(self, start_time:float, origin:pg.Vector2, direction:pg.Vector2, speed:int=600, lifetime:float=1000, type='particle', radius=5) -> None:
         self._origin: pg.Vector2 = origin
         self._direction: pg.Vector2 = direction.normalize()
         self._speed: int = speed
         self._lifetime: float = lifetime
         self._start_time: float = start_time
         self._time_alive: float = 0
-        self._sprite: AnimatedSprite = AnimatedSprite(None, origin, radius=5)
+        self._sprite: AnimatedSprite = AnimatedSprite(None, origin, radius=radius)
         self._type: str = type
         self.new: bool = True
         self.complete: bool = False
@@ -26,9 +26,10 @@ class Particle:
             particle['start_time'],
             pg.Vector2(particle['origin']['x'], particle['origin']['y']),
             pg.Vector2(particle['direction']['x'], particle['direction']['y']),
-            particle['speed'],
-            particle['lifetime'],
-            particle['type']
+            speed=particle['speed'],
+            lifetime=particle['lifetime'],
+            type=particle['type'],
+            radius=particle['radius']
         )
         # Chances are the particle was created before we received it
         # Move it to its current location
@@ -53,7 +54,8 @@ class Particle:
                 },
             'speed': self._speed,
             'lifetime': self._lifetime,
-            'type': self._type
+            'type': self._type,
+            'radius': self._sprite.rect.width/2
         }
 
     def get_rect(self):
