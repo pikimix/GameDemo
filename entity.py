@@ -253,12 +253,12 @@ class Player(Entity):
     def __init__(self, location, sprite, uuid, name:str=None) -> None:
         super().__init__(location, sprite, uuid, name)
         self._color = (0,0,128,255)
-        self._max_velocity = 350
+        self._max_velocity = 450
         self._type = 'player'
         self.attack_particles: dict[str,Particle] = {}
         self._last_attack = 0
         self._attack_timer = 0
-        self._next_attack = 1000
+        self._next_attack = 500
 
     def update(self, dt, bounds:pg.Rect) -> None:
         keys = pg.key.get_pressed()
