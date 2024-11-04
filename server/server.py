@@ -61,7 +61,9 @@ class WebSocketServer:
             'respawn': 3,
             'score' : 2,
             'minimum': 1,
-            'mutiplyer': 1
+            'multiplyer': 1,
+            'rate': 0.25,
+            'max' : 2
         }
         if Path("spawn_rates.json").is_file():
             with open(Path("spawn_rates.json"), 'r') as f:
@@ -83,7 +85,7 @@ class WebSocketServer:
                 await websocket.close()
                 return
 
-            self.connected_clients[client_id] = [websocket, client_offset]
+            self.connected_clients[client_id] = [websocket, client_offset, self.enemy_spawn_rate['multiplyer']]
             logger.info(f"Client connected: {client_id}")
             # add New enemy targeting the new player
             await self.spawn_enemies(client_id, randint(self.enemy_spawn_rate['minimum'],
@@ -118,6 +120,7 @@ class WebSocketServer:
                         if not remote_entity['is_alive'] and self.players[r_uuid]['is_alive']:
                             self.remove_enemys_targeting(r_uuid)
                         elif remote_entity['is_alive'] and not self.players[r_uuid]['is_alive']:
+                            self.connected_clients[client_id][2] = self.enemy_spawn_rate['multiplyer']
                             await self.spawn_enemies(r_uuid,randint(self.enemy_spawn_rate['minimum'],
                                 self.enemy_spawn_rate['respawn']))
                         self.players[r_uuid] = remote_entity
@@ -145,14 +148,13 @@ class WebSocketServer:
             if 'score' in data.keys():
                 if data['uuid'] in self.scores.keys():
                     logger.debug(self.scores[data['uuid']])
-                    spawn_interval = int(2500 / self.enemy_spawn_rate['mutiplyer'])
+                    spawn_interval = int(2500 / self.connected_clients[client_id][2])
                     logger.info(f"handle_message: {spawn_interval=}")
                     if (self.scores[data['uuid']]['current_score'] // spawn_interval) < (data['score'] // spawn_interval):
-                        if self.enemy_spawn_rate['mutiplyer'] <= 2:
-                            self.enemy_spawn_rate['mutiplyer'] += 0.25
+                        if self.connected_clients[client_id][2] <= self.enemy_spawn_rate['max']:
+                            self.connected_clients[client_id][2] += self.enemy_spawn_rate['rate']
                         else:
-                            self.enemy_spawn_rate['mutiplyer'] = 1
-
+                            self.connected_clients[client_id][2] = self.enemy_spawn_rate['multiplyer']
                         logger.info(f'handle_message: Score crossed breakpoint for {data["name"]}')
                         await self.spawn_enemies(data['uuid'],randint(self.enemy_spawn_rate['minimum'],
                             self.enemy_spawn_rate['score']))
@@ -171,7 +173,7 @@ class WebSocketServer:
         logger.debug(f'Broadcast Message: {message=}')
         for client_id, lst in self.connected_clients.items():
             if lst:
-                websocket, offset = lst
+                websocket, offset, _ = lst
                 message['offset'] = offset
                 if client_id != sender_id and websocket:  # Don't send the message back to the sender
                     try:
@@ -241,7 +243,7 @@ class WebSocketServer:
         logger.info("Closing all client connections...")
         for client_id, lst in self.connected_clients.items():
             if isinstance(lst, list):
-                websocket, offset = lst
+                websocket, _, __ = lst
                 if websocket:
                     await websocket.close()
                     logger.info(f"Closed connection for client: {client_id}")
