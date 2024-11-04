@@ -91,7 +91,7 @@ class Scene:
                 self._score = 0
                 self._last_start = self._current_ticks
                 self._player.respawn(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
-                {'player': self._sprite_list.get_sprite('player')})
+                {'player-round': self._sprite_list.get_sprite('player-round')})
         else:
             self._score = self._current_ticks - self._last_start
             payload['score'] = self._score + self._score_additional
