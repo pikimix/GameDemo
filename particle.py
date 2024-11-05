@@ -33,12 +33,12 @@ class Particle:
         )
         # Chances are the particle was created before we received it
         # Move it to its current location
-        logger.info(f'from_dict: {new_particle.get_rect()} before catch up')
+        logger.debug(f'from_dict: {new_particle.get_rect()} before catch up')
         if current_tick != particle['start_time']:
             dt = current_tick - particle['start_time']
             logger.info(f'from_dict: {dt=}')
             new_particle.update(dt)
-        logger.info(f'from_dict: {new_particle.get_rect()} after catch up')
+        logger.debug(f'from_dict: {new_particle.get_rect()} after catch up')
         return new_particle
     
     def serialize(self):
