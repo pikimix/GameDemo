@@ -11,6 +11,7 @@ import json
 import logging
 from random import choice
 from particle import Particle
+from pickup import Pickup
 import time
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +26,8 @@ class Scene:
         self._other_players: dict[str, Player] = {}
         self._enemies: dict[str, Enemy] = {}
         self._particles: dict[str,Particle] ={}
+        self._pick_ups: dict[str,Pickup] = {}
+        self._last_pickup: float = 0
         self._sprite_list: SpriteSet = SpriteSet({
             'player-round': {
                 'file':'assets/player-rounder.png',
@@ -38,6 +41,18 @@ class Scene:
                 'width': 32,
                 'height': 64,
                 'frames': 4
+            },
+            'health': {
+                'file':'assets/cross-outline.png',
+                'width': 16,
+                'height': 16,
+                'frames': 1
+            },
+            'shield':{
+                'file':'assets/shield-shaded.png',
+                'width': 16,
+                'height': 16,
+                'frames': 1
             }
         })
         self._player: Player = Player(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
@@ -78,6 +93,29 @@ class Scene:
         if new_particles:
             payload['particles'] = new_particles
 
+        if self._current_ticks - self._last_pickup >= 5000 and self._player.is_alive:
+            self._last_pickup = self._current_ticks
+            pickup_uuid = str(uuid.uuid4())
+            pwrup = choice(['health', 'shield'])
+            #right now only health is implements
+            pwrup = 'health'
+            self._pick_ups[pickup_uuid] = Pickup(pg.Vector2(randint(0,1264), randint(0,704)),
+                                                {pwrup: self._sprite_list.get_sprite(pwrup)})
+            payload['pickups'] = {pickup_uuid: self._pick_ups[pickup_uuid].serialize()}
+        
+        pickup_rect = {p:self._pick_ups[p].get_rect() for p in self._pick_ups}
+        collected = self._player.get_rect().collidedictall(pickup_rect, values=True)
+        if collected:
+            collected = [k[0] for k in collected]
+            for k in collected:
+                self._pick_ups[k].collected = True
+                if 'pickups' in payload: payload['pickups'][k] = self._pick_ups[k].serialize()
+                else: payload['pickups'] = {k:self._pick_ups[k].serialize()}
+                if self._pick_ups[k].type == 'health':
+                    self._player.heal()
+                elif self._pick_ups[k].type == 'shield':
+                    pass
+        
         # update animation for remote players
         [self._other_players[e].update_animation() for e in self._other_players ]
         [self._particles[p].update(dt) for p in self._particles]
@@ -89,6 +127,7 @@ class Scene:
             keys = pg.key.get_pressed()
             if keys[pg.K_SPACE]:
                 self._score = 0
+                self._last_pickup = self._current_ticks
                 self._last_start = self._current_ticks
                 self._player.respawn(pg.Vector2(self._screen.get_width() / 2, self._screen.get_height() / 2),
                 {'player-round': self._sprite_list.get_sprite('player-round')})
@@ -165,6 +204,12 @@ class Scene:
             except Exception as e:
                 logger.error(f'update_enemy:{e=} : {r_uuid_text=} {r_uuid=} {entity=}')
 
+    def update_pickup(self, pickup:dict[str,dict[str,str]]):
+        logger.info(f'update_pickup: {pickup=}')
+        for k,v in pickup.items():
+            self._pick_ups[k] = Pickup(pg.Vector2(v['x'],v['y']),
+                                                {v['type']: self._sprite_list.get_sprite(v['type'])}
+                                                )
     def spawn_enemy(self, r_uuid, entity):
         logger.debug(f'spawn_enemy: Respawning {r_uuid}')
         location = pg.Vector2(choice([randint(0, 128), randint(1152, 1280)]),\
@@ -199,9 +244,13 @@ class Scene:
             logger.debug(f'{offset=}')
             for p_uuid, particle in data['particles'].items():
                 particle['start_time'] -= offset
-                logger.info(f'handle_message: {particle["start_time"]=} {self._current_ticks=}')
+                logger.debug(f'handle_message: {particle["start_time"]=} {self._current_ticks=}')
                 self._particles[p_uuid] = Particle.from_dict(particle, time.time())
-            logger.info(f'handle_message: {len(self._particles)}')
+            logger.debug(f'handle_message: {len(self._particles)}')
+
+        # if 'pickups' in data:
+        #     logger.info(f'handle_message: {data["pickups"]=}')
+        #     self.update_pickup(data['pickups'])
 
         if 'remove' in data.keys():
             logger.error(f'handle_message:Received remove message: {data["remove"]}')
@@ -222,6 +271,9 @@ class Scene:
             logger.debug(f"{player=} {self._other_players[player].is_alive=}")
             if self._other_players[player].is_alive:
                 self._other_players[player].draw(self._screen, (255,255,0,255))
+        for pickup in self._pick_ups:
+            self._pick_ups[pickup].draw(self._screen)
+
         self.draw_scoreboard()
         if self._player.is_alive:
             self._player.draw(self._screen)

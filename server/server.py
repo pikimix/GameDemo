@@ -51,6 +51,15 @@ class WebSocketServer:
         #         'is_alive': False
         #     }
         # }
+        self.pickups: dict[str,str|int] = {}
+        # {
+        #     str(uuid.uuid4) :{
+        #         'x': 0,
+        #         'y': 0,
+        #         'type': choice(['health', 'shield']),
+        #         'complete': False
+        #     }
+        # }
         self.last_message_time = asyncio.get_event_loop().time()  # Track last message time
         self.update_interval = 0.01  # Update interval in seconds
         self.scores = {}
@@ -145,11 +154,17 @@ class WebSocketServer:
                 for p in data['particles']:
                     data['particles'][p]['start_time'] += self.connected_clients[client_id][1]
                 await self.broadcast(client_id, {'particles': data['particles']})
+
+            if 'pickups' in data:
+                for k,v in data['pickups'].items():
+                    self.pickups[k] = v
+                await self.broadcast(client_id, {'pickups': self.pickups})
+
             if 'score' in data.keys():
                 if data['uuid'] in self.scores.keys():
                     logger.debug(self.scores[data['uuid']])
                     spawn_interval = int(2500 / self.connected_clients[client_id][2])
-                    logger.info(f"handle_message: {spawn_interval=}")
+                    logger.debug(f"handle_message: {spawn_interval=}")
                     if (self.scores[data['uuid']]['current_score'] // spawn_interval) < (data['score'] // spawn_interval):
                         if self.connected_clients[client_id][2] <= self.enemy_spawn_rate['max']:
                             self.connected_clients[client_id][2] += self.enemy_spawn_rate['rate']

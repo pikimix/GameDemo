@@ -66,6 +66,10 @@ class Entity:
         self._hp = self._max_hp
         self.is_alive = True
 
+    def heal(self):
+        self._hp = self._max_hp
+        self.is_alive = True
+
     def damage(self, damage: int, velocity: pg.Vector2=None) -> None:
         self._hp -= damage
         if self._hp <= 0:
