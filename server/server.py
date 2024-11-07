@@ -150,6 +150,7 @@ class WebSocketServer:
                         self.entities[r_uuid]['target'] = None
                         self.entities[r_uuid]['location']['x'] = 1280
                         self.entities[r_uuid]['location']['y'] = 720
+                await self.broadcast(client_id, {'killed': data['killed']})
             if 'particles' in data:
                 for p in data['particles']:
                     data['particles'][p]['start_time'] += self.connected_clients[client_id][1]

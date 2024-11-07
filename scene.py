@@ -87,8 +87,7 @@ class Scene:
                 logger.debug(f'{collides[0]=} {enemies[collides[0]].is_alive=}')
                 if enemies[collides[0]].target != self.uuid:
                     killed[collides[0]] = self._current_ticks
-        if killed:
-            payload['killed'] = killed
+
         new_particles = {p:attacks[p].serialize() for p in attacks if attacks[p].new}
         if new_particles:
             payload['particles'] = new_particles
@@ -146,10 +145,13 @@ class Scene:
                 if enemies[e].target == self.uuid: 
                     enemies[e].is_alive = False
                     enemies[e].target = None
+                    killed[e] = self._current_ticks
             if was_alive:
                 self._score = self._current_ticks - self._last_start
                 payload['score'] = self._score + self._score_additional
 
+        if killed:
+            payload['killed'] = killed
         payload['entities'] = {e: enemies[e].serialize() for e in enemies if enemies[e].target == self.uuid}
         # add player to payload
         payload['entities'][str(self._player.uuid)] = self._player.serialize()
@@ -235,7 +237,7 @@ class Scene:
                 if entity['target'] == str(self.uuid):
                     self.spawn_enemy(r_uuid, entity)
         if 'killed' in data:
-            for r_uuid, ToD in data['killed']:
+            for r_uuid in data['killed']:
                 if r_uuid in self._enemies:
                     self._enemies[r_uuid].is_alive = False
                     self._enemies[r_uuid].target = None
