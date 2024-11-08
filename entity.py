@@ -3,9 +3,12 @@ from sprite_sheet import AnimatedSprite, SpriteSet
 import pygame as pg
 from math import radians
 from random import randint
+import time
 import logging
 import uuid
-from typing import Dict
+
+from particle import Particle
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
@@ -27,7 +30,7 @@ class Entity:
         self._max_velocity = 400
         self._hp = 100
         self._max_hp = 100
-        self._atack = 25
+        self.attack_power = 25
         self.is_alive = True
         self._name = name
         self._type = 'entity'
@@ -63,13 +66,19 @@ class Entity:
         self._hp = self._max_hp
         self.is_alive = True
 
-    def damage(self, damage: int, source_location: pg.Vector2=None) -> None:
+    def heal(self):
+        self._hp = self._max_hp
+        self.is_alive = True
+
+    def damage(self, damage: int, velocity: pg.Vector2=None) -> None:
         self._hp -= damage
         if self._hp <= 0:
+            self._innertia_scaler = 0
             self.is_alive = False
-        elif source_location:
-            self._innertia_vector = self.get_location() - source_location
-            self._innertia_scaler = 0.2
+        elif velocity:
+            self._innertia_vector = velocity.normalize()
+            scaler = velocity.length()
+            self._innertia_scaler = randint(int(scaler*2), int(scaler*3))
 
     def move_to(self, destination: pg.Vector2) -> None:
         target_velocity = destination - self.get_location()
@@ -77,7 +86,7 @@ class Entity:
             target_velocity = target_velocity.normalize() * self._max_velocity
         self._velocity = target_velocity
 
-    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: Dict[str,Entity], dt:float) -> None:
+    def move_to_avoiding(self, destination: pg.Vector2, avoid_list: dict[str,Entity], dt:float) -> None:
         logger.debug(f'move_to_avoiding: Moving {self.uuid=} towards {destination=}')
         # Determine target velocity towards the player
         self.move_to(destination)
@@ -119,7 +128,6 @@ class Entity:
             offeset = (self.get_rect().centerx - other_entity.get_rect().centerx,
                     self.get_rect().centery - other_entity.get_rect().centery
             )
-        # logger.info(f'{offeset=}')
         return offeset
 
     def get_rect(self) -> pg.Rect:
@@ -137,12 +145,13 @@ class Entity:
         return pg.Vector2(self._sprite.rect.centerx, self._sprite.rect.centery)
 
     def update(self, dt: float, bounds:pg.Rect=None) -> None:
-        logger.info(f'Entity:update: {self._type=}{self._velocity=}')
+        logger.debug(f'Entity:update: {self._type=}{self._velocity=}')
         if self._innertia_scaler>0:
-            inertia = self._innertia_vector * self._max_velocity * self._innertia_scaler
-            inertia += self._velocity
+            inertia = self._innertia_vector * self._innertia_scaler
+            # inertia += self._velocity
             self._sprite.update(inertia * dt)
-            self._innertia_scaler -= 0.05
+            self._innertia_scaler -= self._max_velocity * 8 * dt
+            logger.debug(f'{self._innertia_scaler=}')
         else:
             self._sprite.update(self._velocity * dt)
         if bounds:
@@ -212,7 +221,6 @@ class Enemy(Entity):
         self._max_velocity = randint(self._max_velocity/2, self._max_velocity)
         self._draw_hp = False
 
-
     @staticmethod
     def from_dict(enemy: dict, sprite_list: SpriteSet, e_uuid: uuid.UUID) -> Enemy:
         sprite = None
@@ -225,6 +233,11 @@ class Enemy(Entity):
         new_enemy.is_alive = enemy['is_alive']
         new_enemy._velocity = pg.Vector2(enemy['velocity']['x'], enemy['velocity']['y'])
         return new_enemy
+
+    def respawn(self, location: pg.Vector2, sprite: dict = None, target:uuid=None) -> None:
+        super().respawn(location, sprite)
+        if target:
+            self.target = target
 
     def serialize(self) -> dict:
         ret_val = super().serialize()
@@ -240,13 +253,16 @@ class Enemy(Entity):
         for player in player_position_list:
             if player['uuid'] == self.target:
                 super().move_to(player['position'])
-
 class Player(Entity):
     def __init__(self, location, sprite, uuid, name:str=None) -> None:
         super().__init__(location, sprite, uuid, name)
         self._color = (0,0,128,255)
-        self._max_velocity = 350
+        self._max_velocity = 450
         self._type = 'player'
+        self.attack_particles: dict[str,Particle] = {}
+        self._last_attack = 0
+        self._attack_timer = 0
+        self._next_attack = 500
 
     def update(self, dt, bounds:pg.Rect) -> None:
         keys = pg.key.get_pressed()
@@ -275,6 +291,19 @@ class Player(Entity):
                 self._velocity = target_velocity
         logger.debug(f'player:update: {self._velocity.length()}')
         super().update(dt, bounds)
+        completes = [a for a in self.attack_particles if self.attack_particles[a].complete]
+        for c in completes:
+            del self.attack_particles[c]
+        [self.attack_particles[a].update(dt) for a in self.attack_particles]
+
+    def attack(self, closest_point:pg.Vector2, dt:float, ticks:float ):
+        if self.is_alive:
+            self._attack_timer += (dt*1000)
+            if self._last_attack + self._attack_timer >= self._last_attack + self._next_attack:
+                ptcl_uuid = str(uuid.uuid4())
+                self.attack_particles[ptcl_uuid] = Particle(time.time(), self.get_location(), closest_point - self.get_location())
+                self._last_attack = ticks
+                self._attack_timer = 0
 
     def serialize(self) -> dict:
         ret_val = super().serialize()
@@ -282,4 +311,6 @@ class Player(Entity):
         return ret_val
     
     def draw(self, screen) -> None:
+        for _, particle in self.attack_particles.items():
+            if not particle.complete: particle.draw(screen,color=(41,45,41,255))
         super().draw(screen, color=self._color)

@@ -1,0 +1,8 @@
+{
+    "respawn": 3,
+    "score" : 2,
+    "minimum": 1,
+    "multiplyer": 1,
+    "rate": 0.25,
+    "max" : 2
+}

@@ -15,16 +15,27 @@ parser.add_argument("-p", "--port", help="Server port to connect to, or listen o
 parser.add_argument("-d", "--debug", help="Run with debug flags", action='store_true')
 args = parser.parse_args()
 
-async def update_entities(server :WebSocketServer):
+async def update_entities(server: WebSocketServer):
     last_update_time = 0
     while server.running:
         current_time = asyncio.get_event_loop().time()
-        if current_time - last_update_time > server.update_interval:
-            dt = current_time - last_update_time
-            logger.debug("Running update")
-            last_update_time = current_time
-            await server.send_update()
+        logger.debug(f"{(current_time - last_update_time)=} {server.update_interval}")
+        # if current_time - last_update_time > server.update_interval:
+            # dt = current_time - last_update_time
+            # logger.debug("Running update")
+            # updates = await check_queue(server)
+            # last_update_time = current_time
+            # if updates: 
+            #   await server.send_update()
         await asyncio.sleep(0.01)  # Adjust sleep time as needed
+
+async def check_queue(server: WebSocketServer):
+    updates = False
+    while not server.update_queue.empty():
+        server.update_queue.get()
+        server.update_queue.task_done()
+        updates = True
+    return updates
 
 if __name__ == '__main__':
     server = WebSocketServer()
